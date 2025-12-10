@@ -8,7 +8,7 @@ from app.config.llm_config import llm_config
 logger = setup_logging("retriever")
 
 class HybridRetriever:
-    """Hybrid retriever for Qdrant with dense + BM25 sparse search"""
+    # Hybrid retriever for Qdrant with dense + BM25 sparse search
     
     def __init__(self, 
                  vector_store,  # HybridVectorStore from ingestor
@@ -24,12 +24,10 @@ class HybridRetriever:
         self.prompts = PROMPT_MAP
     
     def _setup_prompts(self):
-        """Setup prompts - handled by llm_config"""
         pass
         
     
     def _detect_query_type(self, query: str) -> str:
-        """Detect if query is about mathematics, philosophy, or general"""
         math_keywords = ["toán", "tính", "phương trình", "định lý", "chứng minh", "công thức"]
         philosophy_keywords = ["triết", "quan điểm", "học thuyết", "tư tưởng", "khái niệm", "luận"]
         
@@ -88,7 +86,6 @@ class HybridRetriever:
                 return []
     
     def dense_search(self, query: str, k: int = 5) -> List[Tuple[Document, float]]:
-        """Perform dense-only vector search"""
         self.logger.info(f"Performing dense search for: {query}")
         
         try:
@@ -100,7 +97,6 @@ class HybridRetriever:
             return []
     
     def sparse_search(self, query: str, k: int = 5) -> List[Tuple[Document, float]]:
-        """Perform sparse-only BM25 search"""
         self.logger.info(f"Performing sparse search for: {query}")
         
         try:
@@ -166,7 +162,7 @@ class HybridRetriever:
         return result
     
     def _prepare_context(self, documents: List[Tuple[Document, float]]) -> str:
-        """Prepare context from retrieved documents"""
+        # Prepare context from retrieved documents
         context_parts = []
         
         for i, (doc, score) in enumerate(documents):
@@ -191,7 +187,7 @@ class HybridRetriever:
         return "\n---\n".join(context_parts)
     
     def _generate_answer(self, query: str, context: str, query_type: str) -> str:
-        """Generate answer using LLM"""
+        # Generate answer using LLM
         
         if not self.llm:
             return "LLM is not avaiable"
@@ -214,7 +210,7 @@ class HybridRetriever:
             return f"Không thể tạo câu trả lời: {str(e)}"
     
     def get_retrieval_stats(self, query: str) -> Dict[str, Any]:
-        """Get statistics about the retrieval process"""
+        # Get statistics about the retrieval process
         retrieved_docs = self.hybrid_search(query, k=5)
         
         stats = {
@@ -236,16 +232,5 @@ class HybridRetriever:
         
         return stats
 
-# Factory function
 def create_retriever(vector_store, search_type: str = "hybrid") -> HybridRetriever:
-    """
-    Create a hybrid retriever instance for Qdrant
-    
-    Args:
-        vector_store: HybridVectorStore instance from ingestor
-        search_type: Type of search ("hybrid", "dense", "sparse")
-    
-    Returns:
-        HybridRetriever instance
-    """
     return HybridRetriever(vector_store, search_type)

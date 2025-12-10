@@ -4,13 +4,13 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import numpy as np
 from rank_bm25 import BM25Okapi
-from langchain.schema import Document
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import Qdrant
+from langchain_core.documents import Document
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_qdrant import Qdrant
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from app.utils.logger import setup_logging
-from chunking import get_chunker
+from app.service.RAG.chunking import get_chunker
 from app.config.llm_config import llm_config
 
 from underthesea import word_tokenize
@@ -310,7 +310,6 @@ class HybridVectorStore:
 
 class DocumentIngestor:
     # Handles document ingestion with Qdrant and hybrid embeddings
-    
     def __init__(self, 
                  qdrant_url: str = "http://localhost:6333",
                  collection_name: str = "math_philosophy",
@@ -455,10 +454,9 @@ class DocumentIngestor:
             
             return {
                 "collection_name": self.collection_name,
-                "vector_count": collection_info.vectors_count,
+                "vector_count": collection_info.points_count,
                 "qdrant_url": self.qdrant_url,
-                "indexed_vectors": collection_info.indexed_vectors_count,
-                "pending_vectors": collection_info.pending_vectors_count,
+                "indexed_vectors": collection_info.indexed_vectors_count if hasattr(collection_info, 'indexed_vectors_count') else None,
                 "config": {
                     "vector_size": collection_info.config.params.vectors.size,
                     "distance": str(collection_info.config.params.vectors.distance)

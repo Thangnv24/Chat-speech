@@ -1,8 +1,3 @@
-"""
-RAG Pipeline - Orchestrates the complete RAG workflow
-Handles: Document Ingestion → Vector Storage → Retrieval → Generation
-"""
-
 import os
 import time
 from typing import List, Dict, Any, Optional
@@ -15,20 +10,11 @@ logger = setup_logging("rag_pipeline")
 
 
 class RAGPipeline:
-    """Complete RAG pipeline with ingestion, retrieval, and generation"""
-    
     def __init__(self,
                  qdrant_url: str = "http://localhost:6333",
                  collection_name: str = "math_philosophy",
                  dense_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
-        """
-        Initialize RAG Pipeline
-        
-        Args:
-            qdrant_url: Qdrant server URL
-            collection_name: Name of the collection in Qdrant
-            dense_model: HuggingFace model for dense embeddings
-        """
+
         self.qdrant_url = qdrant_url
         self.collection_name = collection_name
         self.dense_model = dense_model
@@ -43,16 +29,7 @@ class RAGPipeline:
     def ingest_documents(self, 
                         document_paths: List[str],
                         force_reingest: bool = False) -> Dict[str, Any]:
-        """
-        Ingest documents into vector database
-        
-        Args:
-            document_paths: List of paths to PDF/TXT files
-            force_reingest: Force re-ingestion even if collection exists
-        
-        Returns:
-            Dict with ingestion statistics
-        """
+
         self.logger.info(f"Starting document ingestion for {len(document_paths)} files")
         start_time = time.time()
         
@@ -262,8 +239,6 @@ class RAGPipeline:
         return health
 
 
-# Convenience function
 def create_pipeline(qdrant_url: str = "http://localhost:6333",
                    collection_name: str = "math_philosophy") -> RAGPipeline:
-    """Create a RAG pipeline instance"""
     return RAGPipeline(qdrant_url, collection_name)

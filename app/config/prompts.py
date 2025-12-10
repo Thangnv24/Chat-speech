@@ -1,4 +1,4 @@
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 MATH_ANSWER_PROMPT = PromptTemplate(
     template="""Bạn là trợ lý chuyên gia Toán học. Hãy sử dụng thông tin dưới đây để trả lời câu hỏi.
@@ -26,7 +26,6 @@ Tóm tắt:""",
     input_variables=["text"]
 )
 
-# === PROMPTS FOR PHILOSOPHY ===
 PHILOSOPHY_ANSWER_PROMPT = PromptTemplate(
     template="""Bạn là trợ lý chuyên gia Triết học. Hãy sử dụng thông tin dưới đây để trả lời câu hỏi.
 

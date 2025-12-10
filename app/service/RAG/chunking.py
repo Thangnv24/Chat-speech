@@ -28,8 +28,6 @@ class AdvancedTextChunker:
     
     def __init__(self):
         self.logger = logger
-        # self.nlp = self._load_spacy_model()
-        
         # Special patterns for Math and Philosophy
         self.math_patterns = {
             'theorem': r'Định lý|Định lí|Theorem|Theorem\s*[\d\.]+',
@@ -48,21 +46,7 @@ class AdvancedTextChunker:
             'dialectic': r'Biện chứng|Dialectic|Phép biện chứng'
         }
     
-    # Use spacy model for tokenizing
-    # def _load_spacy_model(self):
-    #     try:
-    #         return spacy.load("vi_core_news_lg")
-    #     except OSError:
-    #         try:
-    #             return spacy.load("en_core_web_sm")
-    #         except OSError:
-    #             logger.warning("spaCy model not found, using basic tokenization")
-    #             return None
-    
     # Detect if text is Math, Philosophy or Mixed
-    """
-    Tìm tất cả pattern trong tài liệu, bỏ qua chữ in hoa hay thường
-    """
     def detect_document_type(self, text: str) -> str:
         math_score = sum(len(re.findall(pattern, text, re.IGNORECASE)) 
                         for pattern in self.math_patterns.values())
@@ -147,7 +131,6 @@ class AdvancedTextChunker:
     def semantic_chunking(self, texts: List[str], num_clusters: int = 10) -> List[List[str]]:
         if not texts:
             return []
-        
         """
         tf-idf
         Tần suất thuật ngữ - tần suất tài liệu nghịch đảo
@@ -280,7 +263,7 @@ class AdvancedTextChunker:
         return documents
     
     def _chunk_mixed(self, text: str, chunk_size: int, chunk_overlap: int) -> List[Document]:
-        """Chunking for mixed Mathematics and Philosophy texts"""
+        # Chunking for mixed Mathematics and Philosophy texts
         
         math_structures = self.extract_mathematical_structures(text)
         philosophy_structures = self.extract_philosophical_structures(text)
@@ -319,7 +302,7 @@ class AdvancedTextChunker:
         return documents
     
     def _chunk_general(self, text: str, chunk_size: int, chunk_overlap: int) -> List[Document]:
-        """General chunking for other document types"""
+        # General chunking for other document types
         
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -372,7 +355,7 @@ class AdvancedTextChunker:
         return [s.strip() for s in sections if s.strip()]
     
     def _split_by_philosophical_paragraphs(self, text: str) -> List[str]:
-        """Split philosophical text by paragraphs and concepts"""
+        # Split philosophical text by paragraphs and concepts
         
         # Split by multiple newlines (paragraphs)
         paragraphs = re.split(r'\n\s*\n', text)
@@ -397,7 +380,7 @@ class AdvancedTextChunker:
         return refined_paragraphs
     
     def _split_preserving_math(self, text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
-        """Split text while preserving mathematical content"""
+        # Split text while preserving mathematical content
         
         # First, protect equations and formulas
         protected_text = text

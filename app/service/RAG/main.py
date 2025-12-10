@@ -1,8 +1,3 @@
-"""
-RAG System - Complete Example
-Demonstrates full RAG workflow: Ingestion → Storage → Retrieval → Generation
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -46,7 +41,7 @@ def example_1_basic_ingestion():
         print(f"  - Document types: {stats.get('document_types', {})}")
         
     except Exception as e:
-        print(f"❌ Ingestion failed: {e}")
+        print(f"Ingestion failed: {e}")
         return None
     
     return pipeline
@@ -62,7 +57,7 @@ def example_2_query_system():
     pipeline = create_pipeline()
     
     if not pipeline.load_existing_store():
-        print("❌ No existing vector store found. Run example_1 first.")
+        print("No existing vector store found. Run example_1 first.")
         return
     
     # Initialize retriever
@@ -76,7 +71,7 @@ def example_2_query_system():
     ]
     
     for query in queries:
-        print(f"\n📝 Query: {query}")
+        print(f"\nQuery: {query}")
         print("-" * 60)
         
         try:
@@ -100,7 +95,7 @@ def example_2_query_system():
                     print(f"     {doc.page_content[:150]}...")
             
         except Exception as e:
-            print(f"❌ Query failed: {e}")
+            print(f"Query failed: {e}")
 
 
 def example_3_compare_search_modes():
@@ -112,7 +107,7 @@ def example_3_compare_search_modes():
     pipeline = create_pipeline()
     
     if not pipeline.load_existing_store():
-        print("❌ No existing vector store found.")
+        print("No existing vector store found.")
         return
     
     pipeline.initialize_retriever()

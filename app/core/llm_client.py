@@ -1,11 +1,11 @@
 import time
 from typing import Dict, Any, Optional
-from langchain.llms.base import LLM
-from langchain.schema import Generation, LLMResult
-from src.utils.logger import setup_logging
+from langchain_core.language_models.llms import LLM
+from langchain_core.outputs import Generation, LLMResult
+from langchain_community.llms import Ollama
+from langchain_openai import OpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.llms import OpenAI
-from langchain.llms import Ollama
+from app.utils.logger import setup_logging
 
 logger = setup_logging("llm_client")
 
