@@ -1,8 +1,8 @@
 import os
 from typing import Optional, Dict, Any
 from enum import Enum
-from src.utils.logger import setup_logging
-from src.core.llm_client import get_llm_client_for_config
+from app.utils.logger import setup_logging
+from app.core.llm_client import get_llm_client_for_config
 
 logger = setup_logging("llm_config")
 

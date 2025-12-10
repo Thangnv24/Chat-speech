@@ -17,14 +17,14 @@ class jsonFormat(logging.Formatter):
             'line': record.lineno
         }
 
-    if hasattr(record, 'extra_data'):
+        if hasattr(record, 'extra_data'):
             log_entry.update(record.extra_data)
             
         return json.dumps(log_entry)
 
 class ProjectLogger:
     def __init__(self, name=None, log_level="INFO", log_dir="logs"):
-        self.name = name or __name__
+        self.name = name or __name__    
         self.log_level = getattr(logging, log_level.upper())
         self.log_dir = Path(log_dir)
         
@@ -44,7 +44,7 @@ class ProjectLogger:
         detailed_formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s'
         )
-        json_formatter = JSONFormatter()
+        json_formatter = jsonFormat()
     
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
@@ -100,4 +100,4 @@ def setup_logging(name=None, log_level="INFO", log_dir="logs"):
     return ProjectLogger(name, log_level, log_dir)
 
 # defaut
-logger = setup_logging("llm_rag_project")
+logger = setup_logging()

@@ -1,13 +1,13 @@
 import re
 import numpy as np
 from typing import List, Dict, Any, Optional
-from langchain.text_splitter import RecursiveCharacterTextSplitter, MarkdownTextSplitter
-from langchain.schema import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownTextSplitter
+from langchain_core.documents import Document
 import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 import fitz  
-from src.utils.logger import setup_logging
+from app.utils.logger import setup_logging
 
 """
 Chunk theo context, semantic, rule và recursive
@@ -28,7 +28,7 @@ class AdvancedTextChunker:
     
     def __init__(self):
         self.logger = logger
-        self.nlp = self._load_spacy_model()
+        # self.nlp = self._load_spacy_model()
         
         # Special patterns for Math and Philosophy
         self.math_patterns = {
@@ -48,24 +48,28 @@ class AdvancedTextChunker:
             'dialectic': r'Biện chứng|Dialectic|Phép biện chứng'
         }
     
-    def _load_spacy_model(self):
-        try:
-            return spacy.load("vi_core_news_lg")
-        except OSError:
-            try:
-                return spacy.load("en_core_web_sm")
-            except OSError:
-                logger.warning("spaCy model not found, using basic tokenization")
-                return None
+    # Use spacy model for tokenizing
+    # def _load_spacy_model(self):
+    #     try:
+    #         return spacy.load("vi_core_news_lg")
+    #     except OSError:
+    #         try:
+    #             return spacy.load("en_core_web_sm")
+    #         except OSError:
+    #             logger.warning("spaCy model not found, using basic tokenization")
+    #             return None
     
+    # Detect if text is Math, Philosophy or Mixed
+    """
+    Tìm tất cả pattern trong tài liệu, bỏ qua chữ in hoa hay thường
+    """
     def detect_document_type(self, text: str) -> str:
-        """Detect if text is Math, Philosophy or Mixed"""
         math_score = sum(len(re.findall(pattern, text, re.IGNORECASE)) 
                         for pattern in self.math_patterns.values())
-        philosophy_score = sum(len(re.findall(pattern, text, re.IGNORECASE)) 
+        philo_score = sum(len(re.findall(pattern, text, re.IGNORECASE)) 
                              for pattern in self.philosophy_patterns.values())
         
-        total_score = math_score + philosophy_score
+        total_score = math_score + philo_score
         
         if total_score == 0:
             return "general"
@@ -79,11 +83,10 @@ class AdvancedTextChunker:
         else:
             return "mixed"
     
+    # Extract mathematical structures from text (theorem, proof,equation)
     def extract_mathematical_structures(self, text: str) -> List[Dict[str, Any]]:
-        """Extract mathematical structures from text"""
         structures = []
-        
-        # Extract theorems
+        # Theorems
         theorems = re.finditer(self.math_patterns['theorem'], text, re.IGNORECASE)
         for match in theorems:
             structures.append({
@@ -93,7 +96,7 @@ class AdvancedTextChunker:
                 'end': match.end()
             })
         
-        # Extract proofs
+        # Proofs
         proofs = re.finditer(self.math_patterns['proof'], text, re.IGNORECASE)
         for match in proofs:
             structures.append({
@@ -103,7 +106,7 @@ class AdvancedTextChunker:
                 'end': match.end()
             })
         
-        # Extract equations
+        # equations
         equations = re.finditer(self.math_patterns['equation'], text, re.DOTALL)
         for match in equations:
             structures.append({
@@ -115,11 +118,10 @@ class AdvancedTextChunker:
         
         return structures
     
+    # Extract philo structures from text (concept, argument, )
     def extract_philosophical_structures(self, text: str) -> List[Dict[str, Any]]:
-        """Extract philosophical structures from text"""
         structures = []
-        
-        # Extract concepts
+        # concepts
         concepts = re.finditer(self.philosophy_patterns['concept'], text, re.IGNORECASE)
         for match in concepts:
             structures.append({
@@ -129,7 +131,7 @@ class AdvancedTextChunker:
                 'end': match.end()
             })
         
-        # Extract arguments
+        # arguments
         arguments = re.finditer(self.philosophy_patterns['argument'], text, re.IGNORECASE)
         for match in arguments:
             structures.append({
@@ -141,15 +143,20 @@ class AdvancedTextChunker:
         
         return structures
     
+    # Semantic and tf-idf
     def semantic_chunking(self, texts: List[str], num_clusters: int = 10) -> List[List[str]]:
-        """Chunk texts based on semantic similarity using TF-IDF and clustering"""
         if not texts:
             return []
         
-        # Create TF-IDF vectors
+        """
+        tf-idf
+        Tần suất thuật ngữ - tần suất tài liệu nghịch đảo
+        Càng cao -> càng quan trọng
+        Sử dụng 1000 từ quan trọng nhất
+        """
         vectorizer = TfidfVectorizer(
             max_features=1000,
-            stop_words=None,  # Keep specialized terms
+            stop_words=None,  
             min_df=2,
             max_df=0.8
         )
@@ -157,11 +164,11 @@ class AdvancedTextChunker:
         try:
             tfidf_matrix = vectorizer.fit_transform(texts)
             
-            # Apply K-means clustering
+            # k-mean
             kmeans = KMeans(n_clusters=min(num_clusters, len(texts)), random_state=42)
             clusters = kmeans.fit_predict(tfidf_matrix)
             
-            # Group texts by cluster
+            # group texts =
             clustered_chunks = [[] for _ in range(max(clusters) + 1)]
             for i, cluster_id in enumerate(clusters):
                 clustered_chunks[cluster_id].append(texts[i])
@@ -171,12 +178,12 @@ class AdvancedTextChunker:
             
         except Exception as e:
             logger.error(f"Semantic chunking failed: {str(e)}", {"error": str(e)})
-            return [texts]  # Fallback: return all texts as one chunk
+            return [texts]  
     
+    # Document type and context
     def context_aware_chunking(self, text: str, doc_type: str, 
                              chunk_size: int = 1000, 
                              chunk_overlap: int = 200) -> List[Document]:
-        """Chunk text based on document type and context"""
         
         logger.info(f"Starting context-aware chunking for {doc_type} document")
         
@@ -188,10 +195,9 @@ class AdvancedTextChunker:
             return self._chunk_mixed(text, chunk_size, chunk_overlap)
         else:
             return self._chunk_general(text, chunk_size, chunk_overlap)
-    
+
+    # Math    
     def _chunk_mathematics(self, text: str, chunk_size: int, chunk_overlap: int) -> List[Document]:
-        """Specialized chunking for mathematical texts"""
-        
         # First, extract important mathematical structures
         math_structures = self.extract_mathematical_structures(text)
         
@@ -432,6 +438,8 @@ class AdvancedTextChunker:
             for page_num, page in enumerate(doc):
                 text = page.get_text()
                 full_text += f"\n\n--- Page {page_num + 1} ---\n\n{text}"
+                # print(f"Page {page_num+1} length: {len(text)}")
+                # print(f"First 200 chars: {text[:200]}")
             
             doc.close()
             
@@ -470,7 +478,6 @@ class AdvancedTextChunker:
             logger.error(f"Text file processing failed: {str(e)}", {"file": file_path, "error": str(e)})
             return []
 
-# Singleton instance
 chunker = AdvancedTextChunker()
 
 def get_chunker() -> AdvancedTextChunker:

@@ -1,4 +1,3 @@
-# src/core/ingestor.py
 import os
 import pickle
 from typing import List, Dict, Any, Optional, Tuple
@@ -10,15 +9,15 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Qdrant
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from src.utils.logger import setup_logging
-from src.utils.chunking import get_chunker
-from src.config.llm_config import llm_config
+from app.utils.logger import setup_logging
+from chunking import get_chunker
+from app.config.llm_config import llm_config
+
+from underthesea import word_tokenize
 
 logger = setup_logging("ingestor")
 
 class BM25Embeddings:
-    """BM25 sparse embeddings for hybrid search"""
-    
     def __init__(self):
         self.tokenized_corpus = []
         self.bm25 = None
@@ -26,9 +25,6 @@ class BM25Embeddings:
         self.documents = []
     
     def fit(self, texts: List[str]):
-        """Fit BM25 on the corpus"""
-        from underthesea import word_tokenize
-        
         # Tokenize texts for Vietnamese
         self.tokenized_corpus = [word_tokenize(text.lower()) for text in texts]
         self.documents = texts
@@ -41,9 +37,7 @@ class BM25Embeddings:
                     self.vocab[token] = len(self.vocab)
     
     def embed_document(self, text: str, doc_id: int) -> List[float]:
-        """Create sparse BM25 embedding for a document"""
-        from underthesea import word_tokenize
-        
+        # Create sparse BM25 embedding for a document
         if not self.bm25:
             raise ValueError("BM25 not fitted. Call fit() first.")
         
@@ -64,9 +58,7 @@ class BM25Embeddings:
         return sparse_vector
     
     def embed_query(self, text: str) -> Dict[str, Any]:
-        """Create sparse BM25 embedding for a query"""
-        from underthesea import word_tokenize
-        
+        # Create sparse BM25 embedding for a query
         if not self.bm25:
             raise ValueError("BM25 not fitted. Call fit() first.")
         
@@ -100,8 +92,7 @@ class BM25Embeddings:
         }
 
 class HybridVectorStore:
-    """Hybrid vector store with dense and sparse embeddings"""
-    
+    # Hybrid vector store with dense and sparse
     def __init__(self, 
                  qdrant_url: str = "http://localhost:6333",
                  collection_name: str = "math_philosophy",
@@ -114,8 +105,7 @@ class HybridVectorStore:
         self.logger = logger
         
     def create_collection(self, vector_size: int = 384):
-        """Create Qdrant collection with support for dense vectors only"""
-        
+        # Create Qdrant collection with support for dense vectors only
         try:
             self.qdrant_client.create_collection(
                 collection_name=self.collection_name,
@@ -132,7 +122,7 @@ class HybridVectorStore:
                 raise
     
     def add_documents(self, documents: List[Document], texts: List[str]):
-        """Add documents with dense embeddings, sparse indices stored separately"""
+        # Add documents with dense embeddings, sparse indices stored separately
         
         # Create dense embeddings
         dense_vectors = self.dense_embeddings.embed_documents([doc.page_content for doc in documents])
@@ -176,7 +166,6 @@ class HybridVectorStore:
         return len(documents)
     
     def _save_bm25_data(self):
-        """Save BM25 data for later use"""
         bm25_data = {
             "vocab": self.bm25.vocab,
             "documents": self.bm25.documents,
@@ -190,7 +179,6 @@ class HybridVectorStore:
         self.logger.info("BM25 data saved")
     
     def _load_bm25_data(self):
-        """Load BM25 data"""
         try:
             with open("./vector_data/bm25_data.pkl", "rb") as f:
                 bm25_data = pickle.load(f)
@@ -213,21 +201,18 @@ class HybridVectorStore:
                      top_k: int = 5,
                      dense_weight: float = 0.7,
                      sparse_weight: float = 0.3) -> List[Tuple[Document, float]]:
-        """Perform hybrid search combining dense and sparse retrieval"""
-        
-        # 1. Dense search
+        # Dense search
         dense_results = self._dense_search(query, top_k * 2)
         
-        # 2. Sparse search (BM25)
+        # Sparse search (BM25)
         sparse_results = self._sparse_search(query, top_k * 2)
         
-        # 3. Combine results using Reciprocal Rank Fusion (RRF)
+        # Combine results using Reciprocal Rank Fusion (RRF)
         combined_results = self._combine_results_rrf(dense_results, sparse_results, top_k)
         
         return combined_results
     
     def _dense_search(self, query: str, top_k: int) -> List[Tuple[int, float]]:
-        """Perform dense vector search"""
         query_vector = self.dense_embeddings.embed_query(query)
         
         search_results = self.qdrant_client.search(
@@ -248,7 +233,6 @@ class HybridVectorStore:
         return results
     
     def _sparse_search(self, query: str, top_k: int) -> List[Tuple[int, float]]:
-        """Perform sparse BM25 search"""
         if not self.bm25.bm25:
             if not self._load_bm25_data():
                 return []
@@ -283,8 +267,7 @@ class HybridVectorStore:
                            dense_results: List[Tuple[Document, float]], 
                            sparse_results: List[Tuple[Document, float]],
                            top_k: int) -> List[Tuple[Document, float]]:
-        """Combine results using Reciprocal Rank Fusion"""
-        
+
         # Create maps for quick lookup
         dense_map = {doc.page_content: (doc, score, i+1) 
                     for i, (doc, score) in enumerate(dense_results)}
@@ -326,7 +309,7 @@ class HybridVectorStore:
         return sorted_results[:top_k]
 
 class DocumentIngestor:
-    """Handles document ingestion with Qdrant and hybrid embeddings"""
+    # Handles document ingestion with Qdrant and hybrid embeddings
     
     def __init__(self, 
                  qdrant_url: str = "http://localhost:6333",
@@ -340,7 +323,7 @@ class DocumentIngestor:
         self.logger = logger
     
     def ingest_documents(self, document_paths: List[str]) -> HybridVectorStore:
-        """Ingest documents into Qdrant with hybrid embeddings"""
+        # Ingest documents into Qdrant with hybrid embeddings
         
         self.logger.info(f"Starting ingestion of {len(document_paths)} documents")
         
@@ -456,7 +439,7 @@ class DocumentIngestor:
             return None
     
     def get_vector_store_stats(self) -> Dict[str, Any]:
-        """Get statistics about the vector store"""
+        # Get statistics about the vector store
         try:
             # Get collection info from Qdrant
             collection_info = self.vector_store.qdrant_client.get_collection(
@@ -487,8 +470,6 @@ class DocumentIngestor:
             self.logger.error(f"Failed to get vector store stats: {str(e)}")
             return {"error": str(e)}
 
-# Factory function
 def create_ingestor(qdrant_url: str = "http://localhost:6333",
                    collection_name: str = "math_philosophy") -> DocumentIngestor:
-    """Create a document ingestor instance"""
     return DocumentIngestor(qdrant_url, collection_name)

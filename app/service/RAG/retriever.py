@@ -1,24 +1,17 @@
-# src/core/retriever.py
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
-from langchain.vectorstores import Chroma
-from langchain.llms import LlamaCpp
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
-from langchain.schema import Document
-from langchain.callbacks.manager import CallbackManager
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from src.utils.logger import setup_logging
-from src.config.prompts import PROMPT_MAP
-from src.config.llm_config import llm_config
+from langchain_core.documents import Document
+from app.utils.logger import setup_logging
+from app.config.prompts import PROMPT_MAP
+from app.config.llm_config import llm_config
 
 logger = setup_logging("retriever")
 
 class HybridRetriever:
-    """Hybrid retriever combining dense and semantic search"""
+    """Hybrid retriever for Qdrant with dense + BM25 sparse search"""
     
     def __init__(self, 
-                 vector_store: Chroma,
+                 vector_store,  # HybridVectorStore from ingestor
                  search_type: str = "hybrid"):
         
         self.vector_store = vector_store
@@ -30,32 +23,8 @@ class HybridRetriever:
         
         self.prompts = PROMPT_MAP
     
-    def _initialize_llm(self, model_path: str) -> LlamaCpp:
-        """Initialize LLM for answer generation and re-ranking"""
-        try:
-            self.logger.info(f"Initializing LLM for retriever: {model_path}")
-            
-            callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
-            
-            llm = LlamaCpp(
-                model_path=model_path,
-                temperature=0.3,
-                max_tokens=512,
-                top_p=0.9,
-                top_k=40,
-                n_ctx=2048,
-                callback_manager=callback_manager,
-                verbose=False
-            )
-            
-            self.logger.info("Retriever LLM initialized successfully")
-            return llm
-            
-        except Exception as e:
-            self.logger.error(f"Retriever LLM initialization failed: {str(e)}")
-            return None
-    
     def _setup_prompts(self):
+        """Setup prompts - handled by llm_config"""
         pass
         
     
@@ -79,79 +48,99 @@ class HybridRetriever:
     def hybrid_search(self, 
                      query: str, 
                      k: int = 5,
-                     score_threshold: float = 0.7) -> List[Tuple[Document, float]]:
-        """Perform hybrid search combining multiple retrieval methods"""
+                     dense_weight: float = 0.7,
+                     sparse_weight: float = 0.3) -> List[Tuple[Document, float]]:
+        """
+        Perform hybrid search using Qdrant with dense + BM25 sparse retrieval
         
+        Args:
+            query: Search query
+            k: Number of results to return
+            dense_weight: Weight for dense embeddings (0-1)
+            sparse_weight: Weight for sparse BM25 (0-1)
+        
+        Returns:
+            List of (Document, score) tuples
+        """
         self.logger.info(f"Performing hybrid search for: {query}")
         
         try:
-            # Method 1: Standard similarity search
-            docs1 = self.vector_store.similarity_search_with_score(
-                query, k=k * 2
+            # Use HybridVectorStore's hybrid_search method
+            results = self.vector_store.hybrid_search(
+                query=query,
+                top_k=k,
+                dense_weight=dense_weight,
+                sparse_weight=sparse_weight
             )
             
-            # Method 2: MMR for diversity
-            docs2 = self.vector_store.max_marginal_relevance_search(
-                query, k=k, fetch_k=k * 3
-            )
-            
-            # Convert MMR results to match format
-            docs2_with_scores = [(doc, 1.0) for doc in docs2]
-            
-            # Combine and re-rank results
-            all_docs = self._combine_and_rerank(docs1, docs2_with_scores, query, k)
-            
-            # Filter by score threshold
-            filtered_docs = [(doc, score) for doc, score in all_docs if score >= score_threshold]
-            
-            self.logger.info(f"Hybrid search returned {len(filtered_docs)} documents")
-            return filtered_docs[:k]
+            self.logger.info(f"Hybrid search returned {len(results)} documents")
+            return results
             
         except Exception as e:
             self.logger.error(f"Hybrid search failed: {str(e)}")
-            # Fallback to simple search
-            return self.vector_store.similarity_search_with_score(query, k=k)
+            # Fallback to dense-only search
+            try:
+                results = self.vector_store._dense_search(query, k)
+                self.logger.warning("Fallback to dense-only search")
+                return results
+            except Exception as e2:
+                self.logger.error(f"Fallback search also failed: {str(e2)}")
+                return []
     
-    def _combine_and_rerank(self, 
-                          docs1: List[Tuple[Document, float]], 
-                          docs2: List[Tuple[Document, float]],
-                          query: str,
-                          k: int) -> List[Tuple[Document, float]]:
-        """Combine and re-rank search results"""
+    def dense_search(self, query: str, k: int = 5) -> List[Tuple[Document, float]]:
+        """Perform dense-only vector search"""
+        self.logger.info(f"Performing dense search for: {query}")
         
-        # Combine all documents
-        all_docs = {}
-        for doc, score in docs1 + docs2:
-            if doc.page_content not in all_docs:
-                all_docs[doc.page_content] = (doc, score)
-            else:
-                # Keep the higher score
-                existing_doc, existing_score = all_docs[doc.page_content]
-                if score > existing_score:
-                    all_docs[doc.page_content] = (doc, score)
+        try:
+            results = self.vector_store._dense_search(query, k)
+            self.logger.info(f"Dense search returned {len(results)} documents")
+            return results
+        except Exception as e:
+            self.logger.error(f"Dense search failed: {str(e)}")
+            return []
+    
+    def sparse_search(self, query: str, k: int = 5) -> List[Tuple[Document, float]]:
+        """Perform sparse-only BM25 search"""
+        self.logger.info(f"Performing sparse search for: {query}")
         
-        # Convert back to list
-        unique_docs = list(all_docs.values())
-        
-        # Simple re-ranking: sort by score
-        reranked_docs = sorted(unique_docs, key=lambda x: x[1], reverse=True)
-        
-        return reranked_docs[:k]
+        try:
+            results = self.vector_store._sparse_search(query, k)
+            self.logger.info(f"Sparse search returned {len(results)} documents")
+            return results
+        except Exception as e:
+            self.logger.error(f"Sparse search failed: {str(e)}")
+            return []
     
     def retrieve(self, 
                 query: str, 
                 k: int = 5,
-                include_sources: bool = True) -> Dict[str, Any]:
-        """Main retrieval method"""
+                include_sources: bool = True,
+                search_mode: str = "hybrid") -> Dict[str, Any]:
+        """
+        Main retrieval method with answer generation
         
+        Args:
+            query: User query
+            k: Number of documents to retrieve
+            include_sources: Include source documents in response
+            search_mode: "hybrid", "dense", or "sparse"
+        
+        Returns:
+            Dict with query, answer, context, and metadata
+        """
         self.logger.info(f"Retrieving documents for query: {query}")
         
         # Detect query type for prompt selection
         query_type = self._detect_query_type(query)
         self.logger.info(f"Detected query type: {query_type}")
         
-        # Perform hybrid search
-        retrieved_docs = self.hybrid_search(query, k=k)
+        # Perform search based on mode
+        if search_mode == "dense":
+            retrieved_docs = self.dense_search(query, k=k)
+        elif search_mode == "sparse":
+            retrieved_docs = self.sparse_search(query, k=k)
+        else:  # hybrid
+            retrieved_docs = self.hybrid_search(query, k=k)
         
         # Prepare context from retrieved documents
         context = self._prepare_context(retrieved_docs)
@@ -159,6 +148,8 @@ class HybridRetriever:
         result = {
             "query": query,
             "query_type": query_type,
+            "search_mode": search_mode,
+            "num_retrieved": len(retrieved_docs),
             "retrieved_documents": retrieved_docs if include_sources else [],
             "context": context
         }
@@ -169,6 +160,7 @@ class HybridRetriever:
             result["answer"] = answer
         else:
             result["answer"] = "LLM not available for answer generation"
+            self.logger.warning("LLM not configured, returning context only")
         
         self.logger.info("Retrieval completed successfully")
         return result
@@ -245,6 +237,15 @@ class HybridRetriever:
         return stats
 
 # Factory function
-def create_retriever(vector_store: Chroma, llm_model_path: Optional[str] = None) -> HybridRetriever:
-    """Create a hybrid retriever instance"""
-    return HybridRetriever(vector_store, llm_model_path)
+def create_retriever(vector_store, search_type: str = "hybrid") -> HybridRetriever:
+    """
+    Create a hybrid retriever instance for Qdrant
+    
+    Args:
+        vector_store: HybridVectorStore instance from ingestor
+        search_type: Type of search ("hybrid", "dense", "sparse")
+    
+    Returns:
+        HybridRetriever instance
+    """
+    return HybridRetriever(vector_store, search_type)
