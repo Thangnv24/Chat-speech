@@ -5,7 +5,7 @@ from alembic import context
 
 from app.core.config import settings
 from app.core.database import Base
-from app.models.todo import *  # ensure models are imported
+from app.models.base import *  
 
 config = context.config
 if config.config_file_name is not None:

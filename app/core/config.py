@@ -1,21 +1,17 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import os
 
 class Settings(BaseSettings):
-    """
-    Application settings loaded from environment variables.
-    """
-    # App
-    PROJECT_NAME: str = "FastAPI Todo"
+    PROJECT_NAME: str = "chat-speech"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = False
     
     # DB
-    POSTGRES_HOST: str = "db"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_DB: str = "todo_db"
-    POSTGRES_USER: str = "todo_user"
-    POSTGRES_PASSWORD: str = "todo_pass"
+    POSTGRES_HOST: str = os.getenv('POSTGRES_HOST')
+    POSTGRES_PORT: int = os.getenv('POSTGRES_PORT')
+    POSTGRES_DB: str = os.getenv('POSTGRES_DB')
+    POSTGRES_USER: str = os.getenv('POSTGRES_USER')
+    POSTGRES_PASSWORD: str = os.getenv('POSTGRES_PASSWORD')
     DATABASE_URL: str | None = None  
 
     model_config = SettingsConfigDict(
