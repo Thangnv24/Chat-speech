@@ -1,10 +1,10 @@
 import uuid
 
-from sqlalchemy import update
+from sqlalchemy import update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models import ChatSession, Message
+from app.models.base import ChatSession, Message
 from app.schemas import SessionCreate
 
 # Get list session
@@ -21,7 +21,7 @@ async def get_session(db: AsyncSession, session_id: uuid.UUID) -> ChatSession | 
 
 # Create session automatic by session data
 async def create_session(db: AsyncSession, session_data: SessionCreate) -> ChatSession:
-    new_session = ChatSession(**session_data.dict())
+    new_session = ChatSession(**session_data.model_dump())
     db.add(new_session)
     await db.commit()
     await db.refresh(new_session)
@@ -55,7 +55,9 @@ async def update_session_name(
 async def delete_session(db: AsyncSession, session_id: uuid.UUID) -> ChatSession | None:
     session = await get_session(db, session_id)
     if session:
-        await db.delete(session)
+        await db.execute(
+            delete(ChatSession).where(ChatSession.session_id == session_id)
+        )
         await db.commit()
         return session
     return None

@@ -7,7 +7,7 @@ from app.core.database import get_session
 
 # Chat
 router = APIRouter(prefix="/chat", tags=["Chat"])
-@router.post("", summary="Chat endpoint for legislative drafting")
+@router.post("")
 async def chat(
     query: str,
     session_id: UUID,
@@ -16,7 +16,6 @@ async def chat(
 ):
     try:
         answer = await rag(
-            collection_name=collection_name,
             query=query,
             qdrant_client=qdrant_client,
             db=db,

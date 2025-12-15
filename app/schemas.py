@@ -73,10 +73,6 @@ class MessageBase(BaseModel):
 class MessageCreate(MessageBase):
     session_id: UUID
 
-class MessageUpdate(BaseModel):
-    content: Optional[str] = Field(None, min_length=1)
-    retrieved_context: Optional[str] = None
-
 class MessageResponse(MessageBase):
     message_id: UUID
     session_id: UUID
