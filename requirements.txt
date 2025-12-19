@@ -48,3 +48,5 @@ scipy>=1.11.0
 langdetect
 google-genai
 elevenlabs
+datasets
+ragas

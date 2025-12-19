@@ -3,8 +3,9 @@ import numpy as np
 from typing import List, Dict
 from datasets import Dataset
 from ragas import evaluate
-from ragas.metrics import faithfulness, answer_relevance, context_precision
+from ragas.metrics import Faithfulness, AnswerRelevancy, ContextPrecision
 from app.utils.logger import setup_logging
+from app.service.RAG.main import SimpleRAG
 
 os.environ["OPENAI_API_KEY"] = os.getenv("GEMINI_API_KEY")
 logger = setup_logging("rag_metrics")
@@ -92,6 +93,29 @@ class RAGMetrics:
         )
         self.logger.info(table)
 
-# Usage Example
+
 def create_metrics() -> RAGMetrics:
     return RAGMetrics()
+
+test_queries = ["Định lý Pytago là gì?", "Triết học Mác Lê nin là gì?"]
+test_answers = ["Pytago là định lý đại số tuyến tính của Ba Can", "Triết học Mác Lê Nin là một triết học tư tưởng của Mác Lê Nin"]
+
+metrics = create_metrics()
+
+retrieved_contexts = []
+generated_answers = []
+rag_pipeline = SimpleRAG()
+for q in test_queries:
+    docs = rag_pipeline.retriever.retrieve(q) 
+    retrieved_contexts.append([d.page_content for d in docs])
+    
+    ans = rag_pipeline.query(q)
+    generated_answers.append(ans)
+
+results = metrics.evaluate(
+    retrieved_list=retrieved_contexts,
+    relevant_list=ground_truth_docs,  
+    queries=test_queries,
+    answers=generated_answers,
+    contexts=retrieved_contexts
+)
