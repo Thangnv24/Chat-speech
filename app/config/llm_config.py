@@ -41,7 +41,7 @@ class LLMConfig:
         return {
             "provider": "gemini",
             "api_key": api_key,
-            "model_name": "gemini-pro",  
+            "model_name": "gemini-2.5-flash",  
             "base_url": "https://generativelanguage.googleapis.com/v1beta/models/",
             "max_tokens": 1000,
             "temperature": 0.3,

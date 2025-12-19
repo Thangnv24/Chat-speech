@@ -34,6 +34,7 @@ rank-bm25>=0.2.2
 langchain-qdrant
 langchain_openai
 langchain_google_genai
+langchain-huggingface
 
 
 # Voice/Speech-to-Text dependencies

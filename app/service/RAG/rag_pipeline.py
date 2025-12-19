@@ -11,7 +11,7 @@ logger = setup_logging("rag_pipeline")
 
 class RAGPipeline:
     def __init__(self,
-                 qdrant_url: str = "http://localhost:6333",
+                 qdrant_url,
                  collection_name: str = "math_philosophy",
                  dense_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
 
@@ -83,12 +83,6 @@ class RAGPipeline:
             raise
     
     def load_existing_store(self) -> bool:
-        """
-        Load existing vector store from Qdrant
-        
-        Returns:
-            True if loaded successfully, False otherwise
-        """
         self.logger.info("Loading existing vector store")
         
         try:
@@ -112,15 +106,6 @@ class RAGPipeline:
             return False
     
     def initialize_retriever(self, search_type: str = "hybrid") -> HybridRetriever:
-        """
-        Initialize retriever with loaded vector store
-        
-        Args:
-            search_type: Type of search ("hybrid", "dense", "sparse")
-        
-        Returns:
-            HybridRetriever instance
-        """
         if not self.vector_store:
             raise ValueError("Vector store not initialized. Run ingest_documents() or load_existing_store() first")
         
@@ -134,18 +119,6 @@ class RAGPipeline:
              k: int = 5,
              search_mode: str = "hybrid",
              include_sources: bool = True) -> Dict[str, Any]:
-        """
-        Query the RAG system
-        
-        Args:
-            query: User query
-            k: Number of documents to retrieve
-            search_mode: "hybrid", "dense", or "sparse"
-            include_sources: Include source documents in response
-        
-        Returns:
-            Dict with answer, context, and metadata
-        """
         if not self.retriever:
             self.initialize_retriever()
         
@@ -174,17 +147,6 @@ class RAGPipeline:
                    queries: List[str],
                    k: int = 5,
                    search_mode: str = "hybrid") -> List[Dict[str, Any]]:
-        """
-        Process multiple queries in batch
-        
-        Args:
-            queries: List of queries
-            k: Number of documents per query
-            search_mode: Search mode for all queries
-        
-        Returns:
-            List of results for each query
-        """
         self.logger.info(f"Processing batch of {len(queries)} queries")
         
         results = []
@@ -204,14 +166,13 @@ class RAGPipeline:
         return results
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get statistics about the RAG system"""
         if not self.ingestor:
             return {"error": "System not initialized"}
         
         return self.ingestor.get_vector_store_stats()
     
+    # Check health of all component
     def health_check(self) -> Dict[str, Any]:
-        """Check health of all components"""
         health = {
             "status": "healthy",
             "components": {}
@@ -238,7 +199,6 @@ class RAGPipeline:
         
         return health
 
-
-def create_pipeline(qdrant_url: str = "http://localhost:6333",
+def create_pipeline(qdrant_url,
                    collection_name: str = "math_philosophy") -> RAGPipeline:
     return RAGPipeline(qdrant_url, collection_name)

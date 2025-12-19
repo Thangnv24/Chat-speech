@@ -5,7 +5,7 @@ from datetime import datetime
 import numpy as np
 from rank_bm25 import BM25Okapi
 from langchain_core.documents import Document
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import Qdrant
 from qdrant_client import QdrantClient
 from qdrant_client.http import models

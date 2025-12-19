@@ -9,18 +9,20 @@ from app.utils.logger import setup_logging
 
 logger = setup_logging("llm_client")
 
-class RateLimitedLLM:
-    """Rate limiting wrapper for LLM calls"""
-    
-    def __init__(self, llm: LLM, config: Dict[str, Any]):
+class UniversalLLM:
+    def __init__(self, llm, config: Dict[str, Any]):
         self.llm = llm
         self.config = config
         self.last_call_time = 0
-        self.requests_per_minute = config.get("rate_limit", {}).get("requests_per_minute", 60)
-        self.min_interval = 60.0 / self.requests_per_minute
+        
+        rate_limit = config.get("rate_limit", {})
+        self.requests_per_minute = rate_limit.get("requests_per_minute", 60)
+        self.min_interval = 60.0 / self.requests_per_minute if self.requests_per_minute != float('inf') else 0
     
     def _rate_limit(self):
-        """Implement rate limiting"""
+        if self.min_interval == 0:
+            return
+            
         current_time = time.time()
         time_since_last_call = current_time - self.last_call_time
         
@@ -31,9 +33,32 @@ class RateLimitedLLM:
         
         self.last_call_time = time.time()
     
-    def __call__(self, *args, **kwargs):
+    def __call__(self, prompt: str, **kwargs) -> str:
         self._rate_limit()
-        return self.llm(*args, **kwargs)
+        
+        try:
+            if hasattr(self.llm, 'invoke'):
+                result = self.llm.invoke(prompt, **kwargs)
+                if hasattr(result, 'content'):
+                    return result.content 
+                elif isinstance(result, str):
+                    return result
+                else:
+                    return str(result)
+                    
+            elif hasattr(self.llm, '__call__'):
+                return self.llm(prompt, **kwargs)
+                
+            elif hasattr(self.llm, 'generate'):
+                result = self.llm.generate([prompt], **kwargs)
+                return result.generations[0][0].text
+                
+            else:
+                raise ValueError(f"Don't know how to call LLM of type {type(self.llm)}")
+                
+        except Exception as e:
+            logger.error(f"LLM call failed: {str(e)}")
+            raise
 
 def get_llm_client_for_config(config: Dict[str, Any]) -> Optional[LLM]:
     provider = config["provider"]
@@ -54,51 +79,29 @@ def get_llm_client_for_config(config: Dict[str, Any]) -> Optional[LLM]:
         return None
 
 def _get_gemini_client(config: Dict[str, Any]) -> LLM:
-    try:      
-        llm = ChatGoogleGenerativeAI(
-            model=config["model_name"],
-            google_api_key=config["api_key"],
-            temperature=config["temperature"],
-            max_output_tokens=config["max_tokens"]
-        )
-        
-        logger.info("Gemini LLM client created successfully")
-        return RateLimitedLLM(llm, config)
-        
-    except ImportError:
-        logger.error("google-generativeai package not installed")
-        raise
+    llm = ChatGoogleGenerativeAI(
+        model=config["model_name"],
+        google_api_key=config["api_key"],
+        temperature=config["temperature"],
+        max_output_tokens=config["max_tokens"]
+    )
+    return UniversalLLM(llm, config)  
 
 def _get_qwen_client(config: Dict[str, Any]) -> LLM:
-    try:
-        
-        llm = OpenAI(
-            model_name=config["model_name"],
-            openai_api_key=config["api_key"],
-            openai_api_base=config["base_url"],
-            temperature=config["temperature"],
-            max_tokens=config["max_tokens"]
-        )
-        
-        logger.info("Qwen LLM client created successfully")
-        return RateLimitedLLM(llm, config)
-        
-    except Exception as e:
-        logger.error(f"Failed to create Qwen client: {str(e)}")
-        raise
+    llm = OpenAI(
+        model_name=config["model_name"],
+        openai_api_key=config["api_key"],
+        openai_api_base=config["base_url"],
+        temperature=config["temperature"],
+        max_tokens=config["max_tokens"]
+    )
+    return UniversalLLM(llm, config)  
 
 def _get_ollama_client(config: Dict[str, Any]) -> LLM:
-    try:
-        llm = Ollama(
-            model=config["model_name"],
-            base_url=config["base_url"],
-            temperature=config["temperature"],
-            num_predict=config["max_tokens"]
-        )
-        
-        logger.info("Ollama LLM client created successfully")
-        return llm  
-        
-    except Exception as e:
-        logger.error(f"Failed to create Ollama client: {str(e)}")
-        raise
+    llm = Ollama(
+        model=config["model_name"],
+        base_url=config["base_url"],
+        temperature=config["temperature"],
+        num_predict=config["max_tokens"]
+    )
+    return UniversalLLM(llm, config)  
