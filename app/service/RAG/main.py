@@ -31,7 +31,7 @@ class SimpleRAG:
         self.is_ready = True
         return True
     
-    def query(self, question, k=3, search_mode="hybrid"):
+    def query(self, question, k=5, search_mode="hybrid"):
         if not self.is_ready:
             return "Run setup() first"
         
@@ -88,7 +88,6 @@ def chat_terminal():
                 continue
             
             if question.lower() in ['exit', 'quit']:
-                print("\nThank you")
                 break
             
             if question.lower() == 'info':
@@ -102,6 +101,8 @@ def chat_terminal():
                 continue
             
             answer = rag.query(question)
+            
+            print(f"\nAnswer: {answer}")    
         except KeyboardInterrupt:
             break
         except Exception as e:

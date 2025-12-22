@@ -8,7 +8,11 @@ from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import Qdrant
 from qdrant_client import QdrantClient
-from qdrant_client.http import models
+from qdrant_client import models
+import hashlib
+import uuid
+
+# from qdrant_client.http import models
 from app.utils.logger import setup_logging
 from app.service.RAG.chunking import get_chunker
 from app.config.llm_config import llm_config
@@ -16,80 +20,6 @@ from app.config.llm_config import llm_config
 from underthesea import word_tokenize
 
 logger = setup_logging("ingestor")
-
-class BM25Embeddings:
-    def __init__(self):
-        self.tokenized_corpus = []
-        self.bm25 = None
-        self.vocab = {}
-        self.documents = []
-    
-    def fit(self, texts: List[str]):
-        # Tokenize texts for Vietnamese
-        self.tokenized_corpus = [word_tokenize(text.lower()) for text in texts]
-        self.documents = texts
-        self.bm25 = BM25Okapi(self.tokenized_corpus)
-        
-        # Build vocabulary
-        for tokens in self.tokenized_corpus:
-            for token in tokens:
-                if token not in self.vocab:
-                    self.vocab[token] = len(self.vocab)
-    
-    def embed_document(self, text: str, doc_id: int) -> List[float]:
-        # Create sparse BM25 embedding for a document
-        if not self.bm25:
-            raise ValueError("BM25 not fitted. Call fit() first.")
-        
-        # Get BM25 scores for all documents
-        tokenized_query = word_tokenize(text.lower())
-        scores = self.bm25.get_scores(tokenized_query)
-        
-        # Normalize scores
-        if max(scores) > 0:
-            scores = scores / max(scores)
-        
-        # Create sparse vector (only store non-zero values for efficiency)
-        sparse_vector = []
-        for i, score in enumerate(scores):
-            if score > 0.01:  # Threshold to reduce noise
-                sparse_vector.append((i, float(score)))
-        
-        return sparse_vector
-    
-    def embed_query(self, text: str) -> Dict[str, Any]:
-        # Create sparse BM25 embedding for a query
-        if not self.bm25:
-            raise ValueError("BM25 not fitted. Call fit() first.")
-        
-        tokenized_query = word_tokenize(text.lower())
-        
-        # Get scores for query against all documents
-        doc_scores = self.bm25.get_scores(tokenized_query)
-        
-        # Get top documents
-        top_n = min(10, len(doc_scores))
-        top_indices = np.argsort(doc_scores)[-top_n:][::-1]
-        
-        # Create query vector representation
-        query_terms = {}
-        for token in tokenized_query:
-            if token in query_terms:
-                query_terms[token] += 1
-            else:
-                query_terms[token] = 1
-        
-        # Create sparse vector format
-        sparse_vector = []
-        for idx in top_indices:
-            if doc_scores[idx] > 0:
-                sparse_vector.append((int(idx), float(doc_scores[idx])))
-        
-        return {
-            "sparse_vector": sparse_vector,
-            "top_docs": [(int(idx), float(doc_scores[idx])) for idx in top_indices],
-            "query_terms": list(query_terms.keys())
-        }
 
 class HybridVectorStore:
     # Hybrid vector store with dense and sparse
@@ -101,173 +31,157 @@ class HybridVectorStore:
         self.qdrant_client = QdrantClient(url=qdrant_url)
         self.collection_name = collection_name
         self.dense_embeddings = HuggingFaceEmbeddings(model_name=dense_model)
-        self.bm25 = BM25Embeddings()
         self.logger = logger
         
     def create_collection(self, vector_size: int = 384):
-        # Create Qdrant collection with support for dense vectors only
-        try:
-            self.qdrant_client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config=models.VectorParams(
-                    size=vector_size,
-                    distance=models.Distance.COSINE
+        """Tạo collection với sparse vector support"""
+        self.qdrant_client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=models.VectorParams(
+                size=vector_size, 
+                distance=models.Distance.COSINE
+            ),
+            sparse_vectors_config={
+                "bm25": models.SparseVectorParams(
+                    index=models.SparseIndexParams()
                 )
-            )
-            self.logger.info(f"Created collection {self.collection_name}")
-        except Exception as e:
-            if "already exists" in str(e):
-                self.logger.info(f"Collection {self.collection_name} already exists")
-            else:
-                raise
-    
-    def add_documents(self, documents: List[Document], texts: List[str]):
-        # Add documents with dense embeddings, sparse indices stored separately
+            }
+        )
+        self.logger.info(f"Created collection {self.collection_name} with Sparse support")
+
+    def _generate_id(self, text: str) -> str:
+        """Tạo UUID từ text để tránh collision"""
+        return str(uuid.uuid5(uuid.NAMESPACE_DNS, text))
+
+    def _get_sparse_vector(self, text: str) -> models.SparseVector:
+        """
+        Tạo sparse vector từ text với indices UNIQUE
+        FIX: Merge duplicate indices bằng cách cộng dồn values
+        """
+        tokens = word_tokenize(text.lower())
+        token_counts = {}
+        for t in tokens:
+            token_counts[t] = token_counts.get(t, 0) + 1
         
-        # Create dense embeddings
+        # Giới hạn chỉ lấy top 100 tokens quan trọng nhất
+        sorted_tokens = sorted(token_counts.items(), key=lambda x: x[1], reverse=True)[:100]
+        
+        # Dùng dict để tự động merge duplicate indices
+        index_value_map = {}
+        for token, count in sorted_tokens:
+            idx = abs(hash(token)) % 10000
+            # Nếu index đã tồn tại, cộng dồn giá trị (merge)
+            if idx in index_value_map:
+                index_value_map[idx] += float(count)
+            else:
+                index_value_map[idx] = float(count)
+        
+        # Chuyển sang lists - indices đã unique
+        indices = list(index_value_map.keys())
+        values = list(index_value_map.values())
+        
+        return models.SparseVector(indices=indices, values=values)
+
+    def add_documents(self, documents: List[Document], texts: List[str]):
+        """Thêm documents với cả dense và sparse vectors"""
         dense_vectors = self.dense_embeddings.embed_documents([doc.page_content for doc in documents])
         
-        # Prepare points for Qdrant
         points = []
         for idx, (doc, vector) in enumerate(zip(documents, dense_vectors)):
-            # Prepare metadata payload
-            payload = {
-                "text": doc.page_content,
-                "metadata": doc.metadata,
-                "chunk_id": idx,
-                "document_type": doc.metadata.get("document_type", "unknown"),
-                "source": doc.metadata.get("source", "unknown"),
-                "math_structures": doc.metadata.get("math_structures", []),
-                "philosophy_structures": doc.metadata.get("philosophy_structures", []),
-                "ingestion_time": datetime.now().isoformat()
-            }
+            point_id = self._generate_id(doc.page_content)
             
-            point = models.PointStruct(
-                id=idx,
-                vector=vector,
-                payload=payload
-            )
-            points.append(point)
-        
-        # Upload to Qdrant
-        self.qdrant_client.upsert(
-            collection_name=self.collection_name,
-            points=points
-        )
-        
-        # Train BM25 on texts
-        self.bm25.fit(texts)
-        
-        self.logger.info(f"Added {len(documents)} documents to Qdrant")
-        
-        # Save BM25 data
-        self._save_bm25_data()
-        
-        return len(documents)
+            # Tạo sparse vector với unique indices
+            sparse_vector = self._get_sparse_vector(doc.page_content)
+
+            points.append(models.PointStruct(
+                id=point_id,
+                vector={
+                    "": vector,          # Dense vector mặc định
+                    "bm25": sparse_vector # Sparse vector với unique indices
+                },
+                payload={"text": doc.page_content, "metadata": doc.metadata}
+            ))
+
+        self.qdrant_client.upsert(collection_name=self.collection_name, points=points)
+        self.logger.info(f"Ingested {len(points)} points with synced IDs and Sparse vectors")
     
-    def _save_bm25_data(self):
-        bm25_data = {
-            "vocab": self.bm25.vocab,
-            "documents": self.bm25.documents,
-            "tokenized_corpus": self.bm25.tokenized_corpus
-        }
-        
-        os.makedirs("./vector_data", exist_ok=True)
-        with open("./vector_data/bm25_data.pkl", "wb") as f:
-            pickle.dump(bm25_data, f)
-        
-        self.logger.info("BM25 data saved")
-    
-    def _load_bm25_data(self):
-        try:
-            with open("./vector_data/bm25_data.pkl", "rb") as f:
-                bm25_data = pickle.load(f)
-            
-            self.bm25.vocab = bm25_data["vocab"]
-            self.bm25.documents = bm25_data["documents"]
-            self.bm25.tokenized_corpus = bm25_data["tokenized_corpus"]
-            
-            # Recreate BM25 instance
-            self.bm25.bm25 = BM25Okapi(self.bm25.tokenized_corpus)
-            
-            self.logger.info("BM25 data loaded")
-            return True
-        except FileNotFoundError:
-            self.logger.warning("BM25 data not found")
-            return False
-    
-    def hybrid_search(self, 
-                     query: str, 
-                     top_k: int = 5,
-                     dense_weight: float = 0.7,
-                     sparse_weight: float = 0.3) -> List[Tuple[Document, float]]:
-        # Dense search
-        dense_results = self._dense_search(query, top_k * 2)
-        
-        # Sparse search (BM25)
-        sparse_results = self._sparse_search(query, top_k * 2)
-        
-        # Combine results using Reciprocal Rank Fusion (RRF)
-        combined_results = self._combine_results_rrf(dense_results, sparse_results, top_k)
-        
-        return combined_results
-    
-    def _dense_search(self, query: str, top_k: int) -> List[Tuple[int, float]]:
+    def _dense_search(self, query: str, top_k: int):
+        """Tìm kiếm dense vector"""
         query_vector = self.dense_embeddings.embed_query(query)
         
-        search_results = self.qdrant_client.search(
+        response = self.qdrant_client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=top_k,
             with_payload=True
         )
+        return [(Document(page_content=p.payload["text"], metadata=p.payload.get("metadata", {})), p.score) 
+                for p in response.points]
+            
+    def _sparse_search(self, query: str, top_k: int) -> List[Tuple[Document, float]]:
+        """Tìm kiếm sparse vector"""
+        sparse_vec = self._get_sparse_vector(query)
         
-        results = []
-        for result in search_results:
-            doc = Document(
-                page_content=result.payload["text"],
-                metadata=result.payload.get("metadata", {})
-            )
-            results.append((doc, result.score))
-        
-        return results
-    
-    def _sparse_search(self, query: str, top_k: int) -> List[Tuple[int, float]]:
-        if not self.bm25.bm25:
-            if not self._load_bm25_data():
-                return []
-        
-        # Get BM25 results
-        query_embedding = self.bm25.embed_query(query)
-        top_docs = query_embedding.get("top_docs", [])
-        
-        results = []
-        for doc_idx, score in top_docs[:top_k]:
-            # Get document from Qdrant by ID
-            try:
-                points = self.qdrant_client.retrieve(
-                    collection_name=self.collection_name,
-                    ids=[doc_idx],
-                    with_payload=True
-                )
-                
-                if points:
-                    point = points[0]
-                    doc = Document(
-                        page_content=point.payload["text"],
-                        metadata=point.payload.get("metadata", {})
+        # SỬA: Dùng query_points với using parameter
+        response = self.qdrant_client.query_points(
+            collection_name=self.collection_name,
+            query=sparse_vec,  # Truyền trực tiếp SparseVector
+            using="bm25",      # Chỉ định sử dụng sparse vector "bm25"
+            limit=top_k,
+            with_payload=True
+        )
+        return [(Document(page_content=p.payload["text"], metadata=p.payload.get("metadata", {})), p.score) 
+                for p in response.points]
+
+    def hybrid_search(self, 
+                    query: str, 
+                    top_k: int = 5,
+                    dense_weight: float = 0.7,
+                    sparse_weight: float = 0.3) -> List[Tuple[Document, float]]:
+        """
+        Hybrid search kết hợp dense và sparse với RRF
+        """
+        dense_vec = self.dense_embeddings.embed_query(query)
+        sparse_vec = self._get_sparse_vector(query)
+
+        try:
+            # SỬA: Sử dụng Prefetch với using parameter thay vì NamedSparseVector
+            response = self.qdrant_client.query_points(
+                collection_name=self.collection_name,
+                prefetch=[
+                    # Dense search
+                    models.Prefetch(
+                        query=dense_vec,
+                        limit=top_k
+                    ),
+                    # Sparse search với using parameter
+                    models.Prefetch(
+                        query=sparse_vec,
+                        using="bm25",  # ← ĐÂY LÀ KEY FIX!
+                        limit=top_k
                     )
-                    results.append((doc, float(score)))
-            except Exception as e:
-                self.logger.error(f"Error retrieving document {doc_idx}: {str(e)}")
+                ],
+                # Hợp nhất kết quả bằng RRF
+                query=models.FusionQuery(fusion=models.Fusion.RRF),
+                limit=top_k,
+                with_payload=True
+            )
+
+            return [(Document(page_content=p.payload["text"], metadata=p.payload.get("metadata", {})), p.score) 
+                    for p in response.points]
         
-        return results
-    
+        except Exception as e:
+            self.logger.warning(f"Native hybrid search failed: {e}. Falling back to manual RRF.")
+            # Fallback: Manual RRF nếu native không hoạt động
+            dense_results = self._dense_search(query, top_k)
+            sparse_results = self._sparse_search(query, top_k)
+            return self._combine_results_rrf(dense_results, sparse_results, top_k)
+
     def _combine_results_rrf(self, 
                            dense_results: List[Tuple[Document, float]], 
                            sparse_results: List[Tuple[Document, float]],
                            top_k: int) -> List[Tuple[Document, float]]:
-
+        """Manual RRF fusion"""
         # Create maps for quick lookup
         dense_map = {doc.page_content: (doc, score, i+1) 
                     for i, (doc, score) in enumerate(dense_results)}
@@ -418,23 +332,19 @@ class DocumentIngestor:
         self.logger.info(f"Ingestion metadata saved: {metadata}")
     
     def load_existing_vector_store(self) -> Optional[HybridVectorStore]:
-        """Load existing vector store from Qdrant"""
         try:
-            # Check if collection exists
             collections = self.vector_store.qdrant_client.get_collections()
             collection_names = [col.name for col in collections.collections]
             
             if self.collection_name in collection_names:
-                # Load BM25 data
-                self.vector_store._load_bm25_data()
-                self.logger.info(f"Existing vector store loaded from Qdrant: {self.collection_name}")
+                self.logger.info(f"Successfully connected to existing Qdrant collection: {self.collection_name}")
                 return self.vector_store
             else:
-                self.logger.warning(f"Collection {self.collection_name} does not exist")
+                self.logger.warning(f"Collection {self.collection_name} does not exist on Qdrant server")
                 return None
                 
         except Exception as e:
-            self.logger.error(f"Failed to load existing vector store: {str(e)}")
+            self.logger.error(f"Failed to connect to Qdrant: {str(e)}")
             return None
     
     def get_vector_store_stats(self) -> Dict[str, Any]:
