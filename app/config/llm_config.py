@@ -43,7 +43,7 @@ class LLMConfig:
             "api_key": api_key,
             "model_name": "gemini-2.5-flash",  
             "base_url": "https://generativelanguage.googleapis.com/v1beta/models/",
-            "max_tokens": 1000,
+            "max_tokens": 2048,
             "temperature": 0.3,
             "rate_limit": {
                 "requests_per_minute": 60, 

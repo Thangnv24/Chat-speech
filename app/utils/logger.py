@@ -5,6 +5,33 @@ from pathlib import Path
 from datetime import datetime
 import json
 
+class color(logging.Formatter):
+    green = "\x1b[32;20m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
+
+    FORMATS = {
+        logging.DEBUG: green,
+        logging.INFO: green,
+        logging.WARNING: yellow,
+        logging.ERROR: red,
+        logging.CRITICAL: bold_red
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno, self.reset)
+        orig_levelname = record.levelname
+        record.levelname = f"{log_fmt}{orig_levelname}{self.reset}"
+        
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s'
+        )
+        # formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
 class jsonFormat(logging.Formatter):
     def format(self, record):
         log_entry = {
@@ -33,7 +60,6 @@ class ProjectLogger:
         self.logger = self._setup_logger()
     
     def _setup_logger(self):
-        """Setup logger with multiple handlers"""
         logger = logging.getLogger(self.name)
         logger.setLevel(self.log_level)
         
@@ -45,10 +71,11 @@ class ProjectLogger:
             '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s'
         )
         json_formatter = jsonFormat()
+        color_formatter = color()
     
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(detailed_formatter)
+        console_handler.setFormatter(color_formatter)
         
         # File Handler - All logs
         file_handler = logging.FileHandler(self.log_dir / 'app.log')

@@ -58,7 +58,7 @@ class HybridRetriever:
             sparse_weight: Weight for sparse BM25 (0-1)
         
         Returns:
-            List of (Document, score) tuples
+            List of (Document, score) 
         """
         self.logger.info(f"Performing hybrid search for: {query}")
         

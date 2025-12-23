@@ -41,16 +41,20 @@ class SimpleRAG:
             search_mode=search_mode,
             include_sources=True
         )
-        return result.get('answer', 'There is no answer')
+        answer = result.get('answer', 'There is no answer')
+        logger.info(f"Answer length: {len(answer)} characters")
+        logger.info(f"Query time: {result.get('query_time', 0):.2f}s")
+        logger.info(f"Retrieved docs: {result.get('num_retrieved', 0)}")
+    
+        return answer
     
     def check_health(self):
         health = self.pipeline.health_check()
-        print(f"Trang thai: {health['status']}")
+        print(f"Status: {health['status']}")
         for component, status in health['components'].items():
             print(f"  {component}: {status}")
         return health['status'] == 'healthy'
     
-    # Lay thong tin thong ke
     def get_info(self):
         if self.pipeline.load_existing_store():
             stats = self.pipeline.get_stats()
@@ -104,7 +108,7 @@ def chat_terminal():
             
             print(f"\nAnswer: {answer}")    
         except KeyboardInterrupt:
-            break
+            break 
         except Exception as e:
             print(f"\nError: {e}")
 
