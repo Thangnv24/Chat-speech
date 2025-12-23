@@ -5,11 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.models.base import ChatSession, Message
-from app.schemas import SessionCreate
+from app.schemas import ChatSessionCreate
 
 # Get list session
-async def get_sessions(db: AsyncSession) -> list[ChatSession]:
-    result = await db.execute(select(ChatSession))
+async def get_sessions(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[ChatSession]:
+    result = await db.execute(select(ChatSession).offset(skip).limit(limit))
     return list(result.scalars().all())
 
 # Get session by session id

@@ -12,7 +12,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
 from sqlalchemy import event, text
 from sqlalchemy.exc import SQLAlchemyError
-
+from .exception_handler import exception_handler
 from app.core.config import settings
 
 # Configure logging
@@ -117,22 +117,24 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 # Event listeners for connection management
-@event.listens_for(AsyncEngine, "connect")
+from sqlalchemy.pool import Pool
+from sqlalchemy.engine import Engine
+from sqlalchemy import event
+
+@event.listens_for(Pool, "connect")
+
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Set database-specific settings on connection."""
-    # This is for PostgreSQL, so we don't need SQLite pragmas
-    # But we can set PostgreSQL-specific settings here if needed
-    pass
+    cursor = dbapi_connection.cursor()
+    cursor.close()
 
-
-@event.listens_for(AsyncEngine, "checkout")
+@event.listens_for(Pool, "checkout")
 def receive_checkout(dbapi_connection, connection_record, connection_proxy):
     """Log when a connection is checked out from the pool."""
     if settings.DEBUG:
         logger.debug("Connection checked out from pool")
 
 
-@event.listens_for(AsyncEngine, "checkin")
+@event.listens_for(Pool, "checkin")
 def receive_checkin(dbapi_connection, connection_record):
     """Log when a connection is returned to the pool."""
     if settings.DEBUG:

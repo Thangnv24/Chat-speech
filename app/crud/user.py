@@ -40,3 +40,40 @@ async def email_exists(
         query = query.filter(User.user_id != exclude_user_id)
     result = await db.execute(query)
     return result.scalar_one_or_none() is not None
+
+# Update user
+async def update_user(db: AsyncSession, user_id: uuid.UUID, user_update: UserUpdate) -> Optional[User]:
+    update_data = user_update.model_dump(exclude_unset=True)
+    if not update_data:
+        return await get_user(db, user_id)
+    
+    result = await db.execute(
+        update(User)
+        .where(User.user_id == user_id)
+        .values(**update_data)
+        .returning(User)
+    )
+    updated_user = result.scalar_one_or_none()
+    if updated_user:
+        await db.commit()
+        await db.refresh(updated_user)
+    return updated_user
+
+# Delete user
+async def delete_user(db: AsyncSession, user_id: uuid.UUID) -> Optional[User]:
+    user = await get_user(db, user_id)
+    if user:
+        await db.execute(delete(User).where(User.user_id == user_id))
+        await db.commit()
+        return user
+    return None
+
+# Check if email exists
+async def email_exists(
+    db: AsyncSession, email: str, exclude_user_id: Optional[uuid.UUID] = None
+) -> bool:
+    query = select(User).filter(User.email == email)
+    if exclude_user_id:
+        query = query.filter(User.user_id != exclude_user_id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none() is not None

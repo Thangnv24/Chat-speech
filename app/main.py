@@ -3,68 +3,68 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.database import close_db
-from app.routers.todo import router as todo_router
-from app.routers.voice import router as voice_router
+from app.core.database import init_db, close_db
 
+# Import all routers
+from app.routers import user, session, message, chat, voice
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Lifespan context manager for startup and shutdown events.
-    """
     # Startup
+    await init_db()
+    print(f"Database initialized")
+    print(f"{settings.PROJECT_NAME} started")
+    
     yield
+    
     # Shutdown
     await close_db()
-
+    print(f"Database connections closed")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version="0.1.0",
-    description="FastAPI Todo Application with PostgreSQL",
+    version="1.0.0",
+    description="Chat Application with RAG, Speech-to-Text, and PostgreSQL",
     lifespan=lifespan,
 )
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this properly in production
+    allow_origins=["*"],  # Configure properly in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(todo_router, prefix=settings.API_V1_PREFIX)
-app.include_router(voice_router, prefix=settings.API_V1_PREFIX)
+app.include_router(user.router, prefix=settings.API_V1_PREFIX, tags=["Users"])
+app.include_router(session.router, prefix=settings.API_V1_PREFIX, tags=["Sessions"])
+app.include_router(message.router, prefix=settings.API_V1_PREFIX, tags=["Messages"])
+app.include_router(chat.router, prefix=settings.API_V1_PREFIX, tags=["Chat"])
+app.include_router(voice.router, prefix=settings.API_V1_PREFIX, tags=["Voice"])
 
-
-@app.get("/", tags=["health"])
-async def health():
-    """
-    Health check endpoint.
-    
-    Returns:
-        dict: Status information
-    """
+@app.get("/", tags=["Health"])
+async def root():
+    """Root endpoint"""
     return {
-        "status": "ok",
         "service": settings.PROJECT_NAME,
-        "version": "0.1.0"
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs",
+        "health": "/health"
     }
 
-
-@app.get("/health", tags=["health"])
+@app.get("/health", tags=["Health"])
 async def health_check():
-    """
-    Detailed health check endpoint.
+    """Detailed health check"""
+    from app.core.database import check_connection
     
-    Returns:
-        dict: Detailed health status
-    """
+    db_healthy = await check_connection()
+    
     return {
-        "status": "healthy",
-        "database": "connected",
-        "service": settings.PROJECT_NAME
+        "status": "healthy" if db_healthy else "unhealthy",
+        "database": "connected" if db_healthy else "disconnected",
+        "service": settings.PROJECT_NAME,
+        "version": "1.0.0"
     }

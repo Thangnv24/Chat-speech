@@ -2,8 +2,9 @@ from functools import wraps
 
 from fastapi import HTTPException
 
-from src.internal.common.exception import ExceptionInternalError
-from src.core.logger import logger
+from app.utils.logger import setup_logging
+
+logger = setup_logging("Exception")
 
 
 def exception_handler(func):
@@ -15,6 +16,6 @@ def exception_handler(func):
             raise e
         except Exception as e:
             logger.error(e)
-            raise ExceptionInternalError from e
+            raise e
 
     return wrapper
