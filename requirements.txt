@@ -14,39 +14,42 @@ psycopg2-binary>=2.9.0
 python-multipart>=0.0.6
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+email-validator>=2.0.0
 
-# RAG-specific dependencies
-# Install with: pip install -r requirements-rag.txt
-langchain-text-splitters
-langchain>=0.1.0
+# LangChain Core (INSTALL FIRST - IMPORTANT ORDER)
+langchain-core>=0.1.0
+langchain-community>=0.0.10
+langchain-text-splitters>=0.0.1
+
+# LangChain Integrations
 langchain-google-genai>=0.0.6
-sentence-transformers>=2.2.0
-scikit-learn>=1.3.0
-PyMuPDF>=1.23.0
-numpy>=1.24.0
-qdrant-client>=1.6.0
-rank-bm25>=0.2.2
-underthesea>=6.0.0  # Cho tokenization tiếng Việt
+langchain-openai>=0.0.5
+langchain-huggingface>=0.0.1
+langchain-qdrant>=0.1.0
+
+# Vector Database
+qdrant-client>=1.7.0
+
+# Embeddings & ML
 sentence-transformers>=2.2.2
-langchain-core
-langchain-community
+scikit-learn>=1.3.0
+numpy>=1.24.0
+
+# Document Processing
+PyMuPDF>=1.23.0
 rank-bm25>=0.2.2
-langchain-qdrant
-langchain_openai
-langchain_google_genai
-langchain-huggingface
+underthesea>=6.0.0
 
-
-# Voice/Speech-to-Text dependencies
+# Voice/Speech-to-Text
 groq>=0.4.0
-pyaudio>=0.2.13
 pydub>=0.25.1
 noisereduce>=3.0.0
-
-# Optional: for better audio processing
 scipy>=1.11.0
+
+# Optional
 langdetect
-google-genai
-elevenlabs
 datasets
 ragas
+
+# Note: pyaudio requires system dependencies
+# Install separately: apt-get install portaudio19-dev python3-pyaudio

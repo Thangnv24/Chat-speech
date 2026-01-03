@@ -39,9 +39,9 @@ def create_engine() -> AsyncEngine:
         echo=settings.DEBUG,  # Log SQL queries in debug mode
         echo_pool=settings.DEBUG,  # Log connection pool events
         pool_pre_ping=True,  # Validate connections before use
-        pool_size=10,  # Number of connections to maintain
-        max_overflow=20,  # Additional connections when pool is full
-        pool_timeout=30,  # Timeout for getting connection from pool
+        # pool_size=10,  # Number of connections to maintain
+        # max_overflow=20,  # Additional connections when pool is full
+        # pool_timeout=30,  # Timeout for getting connection from pool
         pool_recycle=3600,  # Recycle connections after 1 hour
         # Use NullPool for testing to avoid connection issues
         poolclass=NullPool if settings.DEBUG else None,
@@ -71,6 +71,13 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
         autocommit=False,  # Manual transaction control
         autoflush=False,  # Manual flush control
     )
+
+@exception_handler
+async def check_connection() -> bool: 
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
+    return True
+
 
 @exception_handler
 async def init_db() -> None:
@@ -193,6 +200,19 @@ class DatabaseManager:
         logger.warning(f"Table {table_name} truncated")
 
 
+
+async def create_tables() -> None:
+    """Create all tables in the database."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Tables created or verified")
+
+async def drop_tables() -> None:
+    """Drop all tables in the database."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    logger.info("Tables dropped")
+
 # Export commonly used items
 __all__ = [
     "Base",
@@ -201,7 +221,7 @@ __all__ = [
     "init_db",
     "close_db", 
     "get_session",
-    "get_session_context",
+    # "get_session_context", # This was not defined in the file, removing from all to avoid errors if not imported
     "create_tables",
     "drop_tables",
     "check_connection",

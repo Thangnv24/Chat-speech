@@ -4,14 +4,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import init_db, close_db
+from fastapi.staticfiles import StaticFiles
 
-# Import all routers
-from app.routers import user, session, message, chat, voice
+from app.routers import user, session, message, chat, voice, auth
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
+    
+    # Create tables
+    from app.core.database import create_tables
+    await create_tables()
+    
     print(f"Database initialized")
     print(f"{settings.PROJECT_NAME} started")
     
@@ -31,29 +36,29 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure properly in production
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(user.router, prefix=settings.API_V1_PREFIX, tags=["Users"])
-app.include_router(session.router, prefix=settings.API_V1_PREFIX, tags=["Sessions"])
-app.include_router(message.router, prefix=settings.API_V1_PREFIX, tags=["Messages"])
-app.include_router(chat.router, prefix=settings.API_V1_PREFIX, tags=["Chat"])
-app.include_router(voice.router, prefix=settings.API_V1_PREFIX, tags=["Voice"])
+app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
+app.include_router(user.router, prefix=settings.API_V1_PREFIX)
+app.include_router(session.router, prefix=settings.API_V1_PREFIX)
+app.include_router(message.router, prefix=settings.API_V1_PREFIX)
+app.include_router(chat.router, prefix=settings.API_V1_PREFIX)
+app.include_router(voice.router, prefix=settings.API_V1_PREFIX)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 @app.get("/", tags=["Health"])
 async def root():
-    """Root endpoint"""
-    return {
-        "service": settings.PROJECT_NAME,
-        "version": "1.0.0",
-        "status": "running",
-        "docs": "/docs",
-        "health": "/health"
-    }
+    """Root endpoint - Redirect to UI"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/index.html")
 
 @app.get("/health", tags=["Health"])
 async def health_check():

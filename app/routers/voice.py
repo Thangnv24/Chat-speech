@@ -1,7 +1,3 @@
-"""
-Voice/Speech-to-Text API endpoints
-"""
-
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -10,7 +6,7 @@ import io
 import os
 from groq import Groq
 
-router = APIRouter(prefix="/voice", tags=["voice"])
+router = APIRouter(prefix="/voice", tags=["Voice"])
 
 # Initialize Groq client
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")

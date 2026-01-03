@@ -2,7 +2,7 @@ import uuid
 
 from typing import Optional
 
-from sqlalchemy import select. update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.base import User
@@ -10,17 +10,17 @@ from app.schemas import UserCreate, UserUpdate
 
 # Get list users
 async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[User]:
-    result = await session.execute(select(User).offset(skip).limit(limit))
+    result = await db.execute(select(User).offset(skip).limit(limit))
     return result.scalars().all()
 
 # Get user by user id
 async def get_user(db: AsyncSession, user_id: uuid.UUID) -> Optional[User]:
-    result = await session.execute(select(User).filter(User.user_id == user_id))
+    result = await db.execute(select(User).filter(User.user_id == user_id))
     return result.scalars().first()
 
 # Get user by email
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
-    result = await session.execute(select(User).filter(User.email == email))
+    result = await db.execute(select(User).filter(User.email == email))
     return result.scalars().first()
 
 # Create user

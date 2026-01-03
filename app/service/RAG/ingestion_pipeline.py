@@ -8,7 +8,7 @@ import uuid
 
 from app.utils.logger import setup_logging
 from app.service.RAG.chunking import get_chunker
-from batch_processor import BatchProcessor
+from app.service.RAG.batch_processor import BatchProcessor
 
 logger = setup_logging("ingestion_pipeline")
 

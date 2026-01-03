@@ -20,7 +20,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     full_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    chat_session: Mapped[list["ChatSession"]] = relationship(
+    chat_sessions: Mapped[list["ChatSession"]] = relationship(
         back_populates="user", cascade="all,delete-orphan"
     )
     

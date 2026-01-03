@@ -11,7 +11,7 @@ import threading
 
 from app.utils.logger import setup_logging
 from app.service.RAG.chunking import get_chunker
-from ingestion_pipeline import IngestionPipeline
+from app.service.RAG.ingestion_pipeline import IngestionPipeline
 
 logger = setup_logging("Ingestor")
 qdrant_url = os.getenv("QDRANT_URL")
