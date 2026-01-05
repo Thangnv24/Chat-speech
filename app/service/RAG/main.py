@@ -48,6 +48,20 @@ class SimpleRAG:
     
         return answer
     
+    def query_full(self, question, k=5, search_mode="hybrid"):
+        """Query and return full result dict (for metrics evaluation)"""
+        if not self.is_ready:
+            return {"answer": "Run setup() first", "error": True}
+        
+        result = self.pipeline.query(
+            query=question,
+            k=k,
+            search_mode=search_mode,
+            include_sources=True
+        )
+        
+        return result
+    
     def check_health(self):
         health = self.pipeline.health_check()
         print(f"Status: {health['status']}")

@@ -45,11 +45,9 @@ groq>=0.4.0
 pydub>=0.25.1
 noisereduce>=3.0.0
 scipy>=1.11.0
+pyaudio>=0.2.11
 
 # Optional
 langdetect
 datasets
 ragas
-
-# Note: pyaudio requires system dependencies
-# Install separately: apt-get install portaudio19-dev python3-pyaudio

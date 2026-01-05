@@ -4,15 +4,16 @@ from langchain_core.documents import Document
 from app.utils.logger import setup_logging
 from app.config.prompts import PROMPT_MAP
 from app.config.llm_config import llm_config
+from sentence_transformers import CrossEncoder
 
 logger = setup_logging("retriever")
 
 class HybridRetriever:
-    # Hybrid retriever for Qdrant with dense + BM25 sparse search
     
     def __init__(self, 
-                 vector_store,  # HybridVectorStore from ingestor
-                 search_type: str = "hybrid"):
+                 vector_store,
+                 search_type: str = "hybrid",
+                 rerank_model: str = "BAAI/bge-reranker-v2-m3"):
         
         self.vector_store = vector_store
         self.search_type = search_type
@@ -22,6 +23,8 @@ class HybridRetriever:
         self.llm = self.llm_config.get_llm_client()
         
         self.prompts = PROMPT_MAP
+        
+        self.reranker = CrossEncoder(rerank_model)
     
     def _setup_prompts(self):
         pass
@@ -45,25 +48,13 @@ class HybridRetriever:
     
     def hybrid_search(self, 
                      query: str, 
-                     k: int = 5,
+                     k: int = 10,
                      dense_weight: float = 0.7,
                      sparse_weight: float = 0.3) -> List[Tuple[Document, float]]:
-        """
-        Perform hybrid search using Qdrant with dense + BM25 sparse retrieval
-        
-        Args:
-            query: Search query
-            k: Number of results to return
-            dense_weight: Weight for dense embeddings (0-1)
-            sparse_weight: Weight for sparse BM25 (0-1)
-        
-        Returns:
-            List of (Document, score) 
-        """
+       
         self.logger.info(f"Performing hybrid search for: {query}")
         
         try:
-            # Use HybridVectorStore's hybrid_search method
             results = self.vector_store.hybrid_search(
                 query=query,
                 top_k=k,
@@ -76,7 +67,6 @@ class HybridRetriever:
             
         except Exception as e:
             self.logger.error(f"Hybrid search failed: {str(e)}")
-            # Fallback to dense-only search
             try:
                 results = self.vector_store._dense_search(query, k)
                 self.logger.warning("Fallback to dense-only search")
@@ -107,38 +97,47 @@ class HybridRetriever:
             self.logger.error(f"Sparse search failed: {str(e)}")
             return []
     
+    def _rerank_documents(self, query: str, documents: List[Tuple[Document, float]], top_k: int = 5) -> List[Tuple[Document, float]]:
+        if not documents:
+            return []
+        
+        try:
+            pairs = [[query, doc.page_content] for doc, _ in documents]
+            scores = self.reranker.predict(pairs)
+            
+            reranked = [(documents[i][0], float(scores[i])) for i in range(len(documents))]
+            reranked.sort(key=lambda x: x[1], reverse=True)
+            
+            return reranked[:top_k]
+        except Exception as e:
+            self.logger.error(f"Reranking failed: {str(e)}")
+            return documents[:top_k]
+    
     def retrieve(self, 
                 query: str, 
-                k: int = 5,
+                k: int = 10,
+                rerank: bool = True,
+                rerank_top_k: int = 5,
                 include_sources: bool = True,
                 search_mode: str = "hybrid") -> Dict[str, Any]:
-        """
-        Main retrieval method with answer generation
-        
-        Args:
-            query: User query
-            k: Number of documents to retrieve
-            include_sources: Include source documents in response
-            search_mode: "hybrid", "dense", or "sparse"
-        
-        Returns:
-            Dict with query, answer, context, and metadata
-        """
+                
         self.logger.info(f"Retrieving documents for query: {query}")
         
-        # Detect query type for prompt selection
         query_type = self._detect_query_type(query)
         self.logger.info(f"Detected query type: {query_type}")
         
-        # Perform search based on mode
-        if search_mode == "dense":
-            retrieved_docs = self.dense_search(query, k=k)
-        elif search_mode == "sparse":
-            retrieved_docs = self.sparse_search(query, k=k)
-        else:  # hybrid
-            retrieved_docs = self.hybrid_search(query, k=k)
+        retrieve_k = k * 3 if rerank else k
         
-        # Prepare context from retrieved documents
+        if search_mode == "dense":
+            retrieved_docs = self.dense_search(query, k=retrieve_k)
+        elif search_mode == "sparse":
+            retrieved_docs = self.sparse_search(query, k=retrieve_k)
+        else:
+            retrieved_docs = self.hybrid_search(query, k=retrieve_k)
+        
+        if rerank and retrieved_docs:
+            retrieved_docs = self._rerank_documents(query, retrieved_docs, top_k=rerank_top_k)
+        
         context = self._prepare_context(retrieved_docs)
         
         result = {
@@ -150,7 +149,6 @@ class HybridRetriever:
             "context": context
         }
         
-        # Generate answer if LLM is available
         if self.llm:
             answer = self._generate_answer(query, context, query_type)
             result["answer"] = answer
@@ -162,7 +160,6 @@ class HybridRetriever:
         return result
     
     def _prepare_context(self, documents: List[Tuple[Document, float]]) -> str:
-        # Prepare context from retrieved documents
         context_parts = []
         
         for i, (doc, score) in enumerate(documents):
@@ -172,7 +169,6 @@ class HybridRetriever:
             context_part = f"[Tài liệu {i+1} - Độ tin cậy: {score:.3f}]\n"
             context_part += f"Loại: {metadata.get('document_type', 'unknown')}\n"
             
-            # Add relevant metadata
             math_structures = metadata.get('math_structures', [])
             philosophy_structures = metadata.get('philosophy_structures', [])
             
@@ -187,7 +183,6 @@ class HybridRetriever:
         return "\n---\n".join(context_parts)
     
     def _generate_answer(self, query: str, context: str, query_type: str) -> str:
-        # Generate answer using LLM
         
         if not self.llm:
             return "LLM is not avaiable"
@@ -196,10 +191,8 @@ class HybridRetriever:
             prompt_info = self.prompts.get(query_type, self.prompts["general"])
             prompt = prompt_info["answer"]
             
-            # Format the prompt
             formatted_prompt = prompt.format(context=context, question=query)
             
-            # Generate answer
             self.logger.info(f"Generating answer using {self.llm_config.provider.value}")
             answer = self.llm(formatted_prompt)
             
@@ -207,11 +200,9 @@ class HybridRetriever:
             
         except Exception as e:
             self.logger.error(f"Answer generation failed: {str(e)}")
-            return f"Không thể tạo câu trả lời: {str(e)}"
     
     def get_retrieval_stats(self, query: str) -> Dict[str, Any]:
-        # Get statistics about the retrieval process
-        retrieved_docs = self.hybrid_search(query, k=5)
+        retrieved_docs = self.hybrid_search(query, k=10)
         
         stats = {
             "query": query,

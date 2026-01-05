@@ -1,0 +1,86 @@
+{
+    "mathematics": [
+        {
+            "question": "Định nghĩa giới hạn của hàm số f(x) khi x dần đến x0 là gì?",
+            "answer": "Giả sử hàm số f(x) xác định trong một lân cận của x0 (có thể trừ tại x0). Ta nói giới hạn của f(x) là l khi x -> x0 nếu với mọi epsilon > 0, tồn tại delta > 0 sao cho với mọi x thỏa mãn 0 < |x - x0| < delta thì |f(x) - l| < epsilon. Ký hiệu: lim(x->x0) f(x) = l."
+        },
+        {
+            "question": "Quy tắc L'Hospital được sử dụng như thế nào để khử dạng vô định 0/0?",
+            "answer": "Quy tắc L'Hospital (quy tắc 1) phát biểu rằng: Nếu f(x) và g(x) là các vô cùng bé (VCB) trong cùng một quá trình (ví dụ x -> x0) và trong quá trình đó tồn tại giới hạn lim(f'(x)/g'(x)) = A (hữu hạn hoặc vô hạn), thì lim(f(x)/g(x)) = A. Lưu ý đạo hàm g'(x) khác 0 trong lân cận xét."
+        },
+        {
+            "question": "Phát biểu định lý Lagrange về hàm khả vi.",
+            "answer": "Định lý Lagrange (định lý giá trị trung bình) phát biểu rằng: Cho hàm số f(x) liên tục trên đoạn [a, b] và khả vi trên khoảng (a, b). Khi đó, tồn tại ít nhất một điểm c thuộc (a, b) sao cho: f(b) - f(a) = f'(c)(b - a). Dạng khác của định lý là: Delta_f = f'(x0 + theta * Delta_x) * Delta_x với theta thuộc (0, 1)."
+        },
+        {
+            "question": "Thế nào là một hàm số liên tục trên đoạn [a, b]?",
+            "answer": "Hàm số y=f(x) được gọi là liên tục trên đoạn [a, b] nếu nó liên tục tại mọi điểm thuộc khoảng (a, b) và liên tục phải tại a (lim(x->a+) f(x) = f(a)), liên tục trái tại b (lim(x->b-) f(x) = f(b))."
+        },
+        {
+            "question": "Công thức tính tích phân từng phần là gì và khi nào nên sử dụng?",
+            "answer": "Công thức tích phân từng phần là Integral(u dv) = uv - Integral(v du). Phương pháp này thường được sử dụng khi biểu thức dưới dấu tích phân chứa tích của các loại hàm số khác nhau như: logarit (ln x), hàm mũ (a^x), hàm lượng giác, hoặc hàm lượng giác ngược đi kèm với đa thức."
+        },
+        {
+            "question": "Định nghĩa đạo hàm riêng của hàm số hai biến f(x, y) theo biến x.",
+            "answer": "Cho hàm số f(x, y) xác định trong miền D, điểm M(x0, y0) thuộc D. Đạo hàm riêng của f theo biến x tại M0, ký hiệu là partial_f/partial_x(x0, y0), được định nghĩa là giới hạn (nếu có): lim(Delta_x -> 0) [f(x0 + Delta_x, y0) - f(x0, y0)] / Delta_x. Khi tính, ta xem y là hằng số."
+        },
+        {
+            "question": "Điều kiện để hàm số f(x, y) đạt cực trị tự do tại điểm M0 là gì dựa trên đạo hàm cấp 2?",
+            "answer": "Giả sử M0 là điểm dừng (p=q=0). Đặt A = f''xx(M0), B = f''xy(M0), C = f''yy(M0). Xét Delta = B^2 - AC: 1. Nếu B^2 - AC < 0: Hàm số đạt cực trị tại M0 (Cực tiểu nếu A > 0, Cực đại nếu A < 0). 2. Nếu B^2 - AC > 0: Hàm số không đạt cực trị tại M0."
+        },
+        {
+            "question": "Vi phân toàn phần của hàm số z = f(x, y) được định nghĩa như thế nào?",
+            "answer": "Nếu số gia toàn phần Delta_f = f(x0 + Delta_x, y0 + Delta_y) - f(x0, y0) có thể biểu diễn dưới dạng Delta_f = A*Delta_x + B*Delta_y + alpha*Delta_x + beta*Delta_y (với alpha, beta -> 0 khi Delta_x, Delta_y -> 0), thì hàm số khả vi. Biểu thức dz = A*Delta_x + B*Delta_y được gọi là vi phân toàn phần. Nếu f có các đạo hàm riêng liên tục thì dz = f'_x dx + f'_y dy."
+        },
+        {
+            "question": "Công thức Newton-Leibniz trong tích phân xác định là gì?",
+            "answer": "Nếu hàm số f(x) liên tục trên đoạn [a, b] và F(x) là một nguyên hàm của f(x) trên đoạn đó, thì tích phân xác định được tính bằng công thức: Integral(a to b) f(x) dx = F(b) - F(a)."
+        },
+        {
+            "question": "Thế nào là tích phân suy rộng với cận vô hạn và khi nào nó hội tụ?",
+            "answer": "Tích phân suy rộng với cận vô hạn được định nghĩa là Integral(a to +inf) f(x) dx = lim(A -> +inf) Integral(a to A) f(x) dx. Nếu giới hạn này tồn tại hữu hạn, ta nói tích phân hội tụ. Ngược lại, nếu giới hạn không tồn tại hoặc bằng vô cùng, tích phân phân kỳ."
+        }
+    ],
+    "philosophy": [
+        {
+            "question": "Vấn đề cơ bản của triết học là gì và nó bao gồm những mặt nào?",
+            "answer": "Theo Ăngghen, vấn đề cơ bản lớn của mọi triết học là vấn đề quan hệ giữa tư duy và tồn tại. Vấn đề này có hai mặt: Mặt thứ nhất trả lời câu hỏi giữa ý thức và vật chất cái nào có trước, cái nào quyết định cái nào?. Mặt thứ hai trả lời câu hỏi con người có khả năng nhận thức được thế giới hay không?. Việc giải quyết vấn đề này phân định các trường phái duy vật, duy tâm và khả tri, bất khả tri."
+        },
+        {
+            "question": "Phân tích quan điểm của triết học Mác - Lênin về bản chất của vật chất.",
+            "answer": "V.I.Lênin định nghĩa vật chất là một phạm trù triết học dùng để chỉ thực tại khách quan, được đem lại cho con người trong cảm giác, được cảm giác chép lại, chụp lại, phản ánh và tồn tại không lệ thuộc vào cảm giác. Định nghĩa này phân biệt vật chất với tư cách phạm trù triết học (vô hạn, vĩnh viễn) với các dạng cụ thể của vật chất (hữu hạn), đồng thời khẳng định tính khách quan và khả năng nhận thức thế giới của con người."
+        },
+        {
+            "question": "Mối quan hệ biện chứng giữa vật chất và ý thức thể hiện như thế nào?",
+            "answer": "Theo chủ nghĩa duy vật biện chứng, vật chất có trước, ý thức có sau; vật chất là nguồn gốc và quyết định ý thức. Tuy nhiên, ý thức có tính độc lập tương đối và tác động trở lại vật chất thông qua hoạt động thực tiễn của con người. Ý thức trang bị tri thức, xác định mục tiêu và phương hướng hành động để con người cải tạo thế giới khách quan."
+        },
+        {
+            "question": "Quy luật chuyển hóa từ những thay đổi về lượng thành những thay đổi về chất hoạt động ra sao?",
+            "answer": "Mọi sự vật là sự thống nhất giữa chất và lượng. Sự thay đổi dần dần về lượng trong giới hạn 'độ' chưa làm thay đổi căn bản chất của sự vật. Khi lượng tích lũy đạt tới điểm nút, sẽ xảy ra 'bước nhảy', làm chất cũ mất đi và chất mới ra đời. Ngược lại, chất mới ra đời sẽ tác động trở lại, làm thay đổi quy mô, nhịp điệu phát triển của lượng."
+        },
+        {
+            "question": "Phân tích quy luật phủ định của phủ định và ý nghĩa của nó đối với sự phát triển.",
+            "answer": "Quy luật này chỉ ra khuynh hướng của sự phát triển là đi lên theo đường xoáy ốc. Sự phát triển trải qua chu kỳ: Khẳng định ban đầu -> Phủ định lần 1 (tạo ra cái đối lập) -> Phủ định lần 2 (phủ định của phủ định). Cái mới ra đời dường như lặp lại cái cũ nhưng trên cơ sở cao hơn , kế thừa những nhân tố tích cực và loại bỏ những yếu tố lạc hậu."
+        },
+        {
+            "question": "Tại sao nói sản xuất vật chất là cơ sở của sự tồn tại và phát triển xã hội?",
+            "answer": "Sản xuất vật chất là hoạt động đặc trưng của con người . Nó tạo ra tư liệu sinh hoạt để duy trì sự tồn tại của con người. Hơn nữa, thông qua sản xuất vật chất, con người sáng tạo ra toàn bộ các quan hệ xã hội, các thể chế nhà nước, pháp quyền, đạo đức và nghệ thuật. Sự phát triển của sản xuất vật chất quyết định sự biến đổi và phát triển từ thấp đến cao của xã hội."
+        },
+        {
+            "question": "Mối quan hệ biện chứng giữa lực lượng sản xuất và quan hệ sản xuất là gì?",
+            "answer": "Đây là quy luật cơ bản nhất của sự vận động xã hội. Lực lượng sản xuất quyết định quan hệ sản xuất: khi lực lượng sản xuất phát triển đến trình độ nhất định, nó đòi hỏi quan hệ sản xuất phải thay đổi cho phù hợp. Ngược lại, quan hệ sản xuất tác động trở lại lực lượng sản xuất: nếu phù hợp, nó thúc đẩy phát triển; nếu lỗi thời, nó kìm hãm sự phát triển của lực lượng sản xuất."
+        },
+        {
+            "question": "Tồn tại xã hội và ý thức xã hội có mối quan hệ như thế nào?",
+            "answer": "Tồn tại xã hội quyết định ý thức xã hội; ý thức xã hội là sự phản ánh của tồn tại xã hội. Khi tồn tại xã hội biến đổi, ý thức xã hội sớm muộn cũng biến đổi theo. Tuy nhiên, ý thức xã hội có tính độc lập tương đối: nó thường lạc hậu hơn , có tính kế thừa , và có thể tác động ngược trở lại tồn tại xã hội (thúc đẩy hoặc kìm hãm) thông qua hoạt động thực tiễn."
+        },
+        {
+            "question": "Phân tích quan điểm của triết học Mác - Lênin về bản chất con người.",
+            "answer": "Trong tác phẩm 'Luận cương về Phoiơbắc', C.Mác khẳng định: 'Trong tính hiện thực của nó, bản chất con người là tổng hòa những quan hệ xã hội'. Con người là thực thể thống nhất giữa mặt sinh vật và mặt xã hội , nhưng mặt xã hội mới là đặc trưng bản chất phân biệt con người với loài vật. Bản chất này không cố định mà vận động biến đổi theo lịch sử."
+        },
+        {
+            "question": "Vai trò của quần chúng nhân dân trong lịch sử được thể hiện qua những nội dung nào?",
+            "answer": "Chủ nghĩa duy vật lịch sử khẳng định quần chúng nhân dân là chủ thể sáng tạo chân chính ra lịch sử. Vai trò này thể hiện ở 3 điểm: (1) Là lực lượng sản xuất cơ bản tạo ra của cải vật chất; (2) Là động lực cơ bản của mọi cuộc cách mạng xã hội; (3) Là người sáng tạo ra những giá trị văn hóa tinh thần."
+        }
+    ]
+}

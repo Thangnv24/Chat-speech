@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 WORKDIR /app
 
 # Install system dependencies
@@ -13,11 +15,9 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements
 COPY requirements.txt .
 
+ENV UV_HTTP_TIMEOUT=300
 # Install Python packages với retry
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt || \
-    (pip install --no-cache-dir langchain-core langchain-community && \
-     pip install --no-cache-dir -r requirements.txt)
+RUN RUN uv pip install --system --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY . .

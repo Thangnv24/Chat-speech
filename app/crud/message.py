@@ -7,13 +7,34 @@ from app.models.base import Message
 from app.schemas import MessageCreate
 
 # Create message
+# async def create_message(db: AsyncSession, message_data: MessageCreate) -> Message:
+#     db_message = Message(
+#         session_id=message_data.session_id,
+#         message_type=message_data.message_type.value,
+#         content=message_data.content,
+#         retrieved_context=message_data.retrieved_context,
+#     )
+#     db.add(db_message)
+#     await db.commit()
+#     await db.refresh(db_message)
+#     return db_message
+
 async def create_message(db: AsyncSession, message_data: MessageCreate) -> Message:
+    clean_content = message_data.content
+    if clean_content:
+        clean_content = clean_content.replace("\x00", "")
+
+    clean_context = message_data.retrieved_context
+    if clean_context:
+        clean_context = clean_context.replace("\x00", "")
+
     db_message = Message(
         session_id=message_data.session_id,
         message_type=message_data.message_type.value,
-        content=message_data.content,
-        retrieved_context=message_data.retrieved_context,
+        content=clean_content,
+        retrieved_context=clean_context,
     )
+    
     db.add(db_message)
     await db.commit()
     await db.refresh(db_message)

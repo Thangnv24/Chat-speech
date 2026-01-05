@@ -76,6 +76,7 @@ class AudioPreprocessor:
     
     @staticmethod
     def preprocess_file(file_path: str) -> bytes:
+        """Preprocess audio file using FFmpeg"""
         # Load audio file
         audio = AudioSegment.from_file(file_path)
         
