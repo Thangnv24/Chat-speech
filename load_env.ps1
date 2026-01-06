@@ -1,4 +1,4 @@
-Get-Content .env.local | ForEach-Object {
+Get-Content .env | ForEach-Object {
     $line = $_.Trim()
     
     if (-not $line) { return }
